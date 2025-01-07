@@ -1,14 +1,18 @@
-#Запуск приложения
+# Запуск приложения
 
-##1) Создать виртуальное окружение
-###python -m venv venv - Windows | python3 -m venv venv - MacOS, Linux
+## 1) Создать виртуальное окружение
+- Windows: `python -m venv venv`
+- MacOS, Linux: `python3 -m venv venv`
 
-##2) Активировать виртуальное окружение
-###venv\Script\active - Windows | source venv\bin\activate - MacOS, Linux
+## 2) Активировать виртуальное окружение
+- Windows: `venv\Scripts\activate`
+- MacOS, Linux: `source venv/bin/activate`
 
-##3) Скачать зависимости
-###pip install > requirements.txt - Windows | pip3 install > requirements.txt - MacOS, Linux
+## 3) Скачать зависимости
+- Windows: `pip install -r requirements.txt`
+- MacOS, Linux: `pip3 install -r requirements.txt`
 
-##4) Запуск приложения
-###alembic upgrade head - Windows, MacOS, Linux
-###python main.py - Windows | python3 main.py - MacOS, Linux
+## 4) Запуск приложения
+- Для всех ОС: `alembic upgrade head`
+- Windows: `python main.py`
+- MacOS, Linux: `python3 main.py`
