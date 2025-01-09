@@ -86,6 +86,7 @@ class TokenRepository(ITokenRepository):
         await self.db_session.delete(token)
         await self.__commit()
 
-    def __check_exist_token(self, token: Token) -> None:
+    def __check_exist_token(self, token: Token) -> Token:
         if token is None:
             raise ValueError("Token does not exists")
+        return token
