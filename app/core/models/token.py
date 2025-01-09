@@ -19,5 +19,4 @@ class Token(DateMixin, VerificationCodeAndTokenMixin, Base):
     
     token: Mapped[str] = mapped_column(String, nullable=False)
     type_token: Mapped[str] = mapped_column(String, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
