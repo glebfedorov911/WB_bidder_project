@@ -8,7 +8,12 @@ class DataBaseSetting(BaseModel):
     url: str = URL
     echo: bool = ECHO
 
+class API(BaseModel):
+    prefix: str = "/api"
+    v0: str = "/v0"
+
 class Settings(BaseSettings):
     db_settings: DataBaseSetting = DataBaseSetting()
+    api: API = API()
 
 settings: Settings = Settings()
