@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 class Token(Base):
     token: Mapped[str] = mapped_column(String, nullable=False)
-    token_token: Mapped[str] = mapped_column(String, nullable=False)
+    type_token: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     expires_at: Mapped[datetime] = mapped_column(DateTime)
     user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), \

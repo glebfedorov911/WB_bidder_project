@@ -1,7 +1,8 @@
 from .base import Base
 from .types.emailtype import EmailType
-from .status.accountstatus import AccountStatus
-from .status.subscriptionstatus import SubscriptionStatus
+from .enum.accountstatus import AccountStatus
+from .enum.accountrole import AccountRole
+from .enum.subscriptionstatus import SubscriptionStatus
 
 from datetime import datetime
 
@@ -23,10 +24,13 @@ class User(Base):
     password: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     account_status: Mapped[AccountStatus] = mapped_column(SQLEnum(AccountStatus), \
         nullable=False, default=AccountStatus.PENDING)
+    account_role: Mapped[AccountRole] = mapped_column(SQLEnum(AccountRole), \
+        nullable=False, default=AccountRole.DEFAULT_USER)
+    is_superuser: Mapped[bool] = mapped_column(Boolean, default=False)
     has_subscription: Mapped[bool] = mapped_column(Boolean, default=False)
     subscription_status: Mapped[SubscriptionStatus] = mapped_column(\
         SQLEnum(SubscriptionStatus), \
-        nullable=True)
+        nullable=False, default=SubscriptionStatus.STANDARD)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, \
         default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=True)

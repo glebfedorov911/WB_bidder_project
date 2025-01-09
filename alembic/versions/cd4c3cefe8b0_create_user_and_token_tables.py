@@ -1,8 +1,8 @@
-"""add tables user and token
+"""create user and token tables
 
-Revision ID: aa9e1dc2ec70
-Revises: d8faa2003dcd
-Create Date: 2025-01-07 20:50:55.779771
+Revision ID: cd4c3cefe8b0
+Revises: 
+Create Date: 2025-01-09 12:23:32.410597
 
 """
 from typing import Sequence, Union
@@ -14,8 +14,8 @@ from app.core.models.types.emailtype import EmailType
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'aa9e1dc2ec70'
-down_revision: Union[str, None] = 'd8faa2003dcd'
+revision: str = 'cd4c3cefe8b0'
+down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -30,8 +30,10 @@ def upgrade() -> None:
     sa.Column('email', EmailType(), nullable=True),
     sa.Column('password', sa.LargeBinary(), nullable=False),
     sa.Column('account_status', sa.Enum('ACTIVE', 'INACTIVE', 'PENDING', 'SUSPENDED', name='accountstatus'), nullable=False),
+    sa.Column('account_role', sa.Enum('DEFAULT_USER', 'ADMIN', name='accountrole'), nullable=False),
+    sa.Column('is_superuser', sa.Boolean(), nullable=False),
     sa.Column('has_subscription', sa.Boolean(), nullable=False),
-    sa.Column('subscription_status', sa.Enum(name="subscriptionstatus"), nullable=True),
+    sa.Column('subscription_status', sa.Enum('STANDARD', name='subscriptionstatus'), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('updated_at', sa.DateTime(), nullable=True),
     sa.Column('subscription_active_until', sa.DateTime(), nullable=True),
@@ -40,7 +42,7 @@ def upgrade() -> None:
     )
     op.create_table('tokens',
     sa.Column('token', sa.String(), nullable=False),
-    sa.Column('token_token', sa.String(), nullable=False),
+    sa.Column('type_token', sa.String(), nullable=False),
     sa.Column('created_at', sa.DateTime(), nullable=False),
     sa.Column('expires_at', sa.DateTime(), nullable=False),
     sa.Column('user_id', sa.UUID(), nullable=False),
