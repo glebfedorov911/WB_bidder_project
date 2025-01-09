@@ -15,7 +15,8 @@ if TYPE_CHECKING:
 
 class Token(DateMixin, VerificationCodeAndTokenMixin, Base):
     _back_populates = "tokens"
-
+    _user_id_index = True
+    
     token: Mapped[str] = mapped_column(String, nullable=False)
     type_token: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

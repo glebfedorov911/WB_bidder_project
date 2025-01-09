@@ -12,14 +12,16 @@ if TYPE_CHECKING:
 
 class VerificationCodeAndTokenMixin:
     _back_populates: str = None 
-    _user_id_nullable: bool = False   
+    _user_id_nullable: bool = False  
+    _user_id_index: bool = False 
 
     @declared_attr
     def user_id(cls) -> Mapped[uuid.UUID]:
         return mapped_column(
             UUID(as_uuid=True),
             ForeignKey("users.id"), 
-            nullable=cls._user_id_nullable
+            nullable=cls._user_id_nullable,
+            index=cls._user_id_index
         )
 
     @declared_attr

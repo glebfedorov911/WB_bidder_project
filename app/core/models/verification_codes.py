@@ -15,6 +15,7 @@ if TYPE_CHECKING:
 
 class VerificationCode(DateMixin, VerificationCodeAndTokenMixin, Base):    
     _back_populates = "code"
+    _user_id_index = True
 
     code: Mapped[str] = mapped_column(nullable=False)
     expires_at: Mapped[datetime] = mapped_column(
