@@ -7,6 +7,7 @@ from pydantic import BaseModel
 
 from ..interfaces.builder_interface import IQueryBuilder
 from core.models.token import Token
+from core.models.user import User
 from core.models.base import Base
 
 
@@ -40,4 +41,8 @@ class QueryBuilder(IQueryBuilder):
 
 class TokenBuilder(QueryBuilder):
     def __init__(self, model: Token = Token):
+        super().__init__(model=model)
+
+class UserBuilder(QueryBuilder):
+    def __init__(self, model: User = User):
         super().__init__(model=model)

@@ -22,7 +22,7 @@ class User(DateMixin, Base):
     lastname: Mapped[str] = mapped_column(String(100), nullable=False)
     patronymic: Mapped[str] = mapped_column(String(100), nullable=True)
     phone: Mapped[str] = mapped_column(String(15), nullable=False, unique=True)
-    email: Mapped[str] = mapped_column(EmailType, nullable=True, unique=True)
+    email: Mapped[EmailType] = mapped_column(EmailType, nullable=True, unique=True)
     password: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     account_status: Mapped[AccountStatus] = mapped_column(
         SQLEnum(AccountStatus), 

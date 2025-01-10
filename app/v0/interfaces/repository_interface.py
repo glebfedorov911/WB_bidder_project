@@ -44,3 +44,6 @@ class IRepository(ABC):
 
 class ITokenRepository(IRepository):
     ...
+
+class IUserRepository(IRepository):
+    ...

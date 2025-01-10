@@ -19,9 +19,13 @@ class Auth(BaseModel):
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
     TOKEN_TYPE: str = "Bearer"
 
+class Subscription(BaseModel):
+    STANDARD_EXPIRE_DAYS: int = 1
+
 class Settings(BaseSettings):
     db_settings: DataBaseSetting = DataBaseSetting()
     api: API = API()
     auth: Auth = Auth()
+    subscription: Subscription = Subscription()
 
 settings: Settings = Settings()
