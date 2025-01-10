@@ -3,11 +3,15 @@ from typing import TypeVar, List, Self
 from sqlalchemy import select, Result
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 
 from ..interfaces.builder_interface import IQueryBuilder
-from ..dependencies.types import builder_type, model_type, schema_type
 from core.models.token import Token
+from core.models.base import Base
 
+
+schema_type = TypeVar("S", bound=BaseModel) 
+model_type = TypeVar("M", bound=Base)
 
 class QueryBuilder(IQueryBuilder):
     def __init__(self, model: model_type):
@@ -35,5 +39,5 @@ class QueryBuilder(IQueryBuilder):
         return select(self.model)
 
 class TokenBuilder(QueryBuilder):
-    def __init__(self, model: Token):
+    def __init__(self, model: Token = Token):
         super().__init__(model=model)

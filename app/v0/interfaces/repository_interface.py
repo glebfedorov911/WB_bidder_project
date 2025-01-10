@@ -5,9 +5,13 @@ import uuid
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.models.token import Base
+from core.models.base import Base
 from ..dependencies.builders import QueryBuilder
-from ..dependencies.types import schema_type, builder_type, model_type
+
+
+schema_type = TypeVar("S", bound=BaseModel) 
+model_type = TypeVar("M", bound=Base)
+builder_type = TypeVar("B", bound=QueryBuilder) 
 
 class IRepository(ABC):
     def __init__(
@@ -19,7 +23,7 @@ class IRepository(ABC):
         ...
 
     @abstractmethod
-    def create(self, data: Schema) -> model_type:
+    def create(self, data: schema_type) -> model_type:
         ...
 
     @abstractmethod
@@ -31,7 +35,7 @@ class IRepository(ABC):
         ...
 
     @abstractmethod
-    def update(self, id: uuid.UUID, data: Schema) -> model_type:
+    def update(self, id: uuid.UUID, data: schema_type) -> model_type:
         ...
 
     @abstractmethod

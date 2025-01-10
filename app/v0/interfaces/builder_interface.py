@@ -1,13 +1,17 @@
 from abc import ABC, abstractmethod
 from typing import Self, List, TypeVar
 
+from pydantic import BaseModel
 from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.models.token import Base
-from ..dependencies.types import builder_type, model_type, schema_type
+from core.models.base import Base
 
-def IQueryBuilder(ABC):
+
+schema_type = TypeVar("S", bound=BaseModel) 
+model_type = TypeVar("M", bound=Base)
+
+class IQueryBuilder(ABC):
 
     @abstractmethod
     def limit(self, value_limit: int) -> Self:

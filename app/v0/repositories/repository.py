@@ -1,11 +1,17 @@
 import uuid
-from typing import List, Optional
+from typing import List, Optional, TypeVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 
 from ..interfaces.repository_interface import IRepository
-from ..dependencies.types import builder_type, schema_type, model_type
+from ..dependencies.builders import QueryBuilder
+from core.models.base import Base
 
+
+schema_type = TypeVar("S", bound=BaseModel) 
+model_type = TypeVar("M", bound=Base)
+builder_type = TypeVar("B", bound=QueryBuilder) 
 
 class Repository(IRepository):
     def __init__(
@@ -16,17 +22,18 @@ class Repository(IRepository):
     ) -> None:
         self.db_session = db_session
         self.model = model
-        self.builder = builder(self.model)
+        self.builder = builder
 
     async def create(self, data: schema_type) -> model_type:
         try:
             return await self._add_data_to_table(data=data)
         except Exception as e:
-            raise ValueError("Error create user. Not valid data")
+            print("fsdjjfsj", e)
+            raise ValueError("Error create. Not valid data")
 
     async def _add_data_to_table(self, data: model_type) -> model_type:
         data_to_table = self.model(**data.model_dump())
-        return self._save_data(data=data_to_table)
+        return await self._save_data(data=data_to_table)
 
     async def get(self) -> List[model_type]:
         return self._get_datas(id=id)
