@@ -5,8 +5,7 @@ from sqlalchemy.sql.elements import ColumnElement
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.models.token import Base
-
-M = TypeVar("M", bound=Base)
+from ..dependencies.types import builder_type, model_type, schema_type
 
 def IQueryBuilder(ABC):
 
@@ -23,5 +22,5 @@ def IQueryBuilder(ABC):
         ...
 
     @abstractmethod
-    async def execute(self, db_session: AsyncSession) -> List[M]:
+    async def execute(self, db_session: AsyncSession) -> List[model_type]:
         ...
