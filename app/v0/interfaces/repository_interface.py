@@ -47,3 +47,6 @@ class ITokenRepository(IRepository):
 
 class IUserRepository(IRepository):
     ...
+
+class IVerCodeRepository(IRepository):
+    ...

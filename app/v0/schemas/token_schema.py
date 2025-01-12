@@ -16,7 +16,7 @@ class TokenCreate(BaseModel):
     token: str
     token_type: str
     expires_at: datetime
-    user_id: uuid.UUID
+    user_id: Optional[uuid.UUID] = None
 
 class TokenUpdate(BaseModel):
     token: Optional[str] = None

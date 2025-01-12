@@ -1,7 +1,9 @@
 from pydantic_settings import BaseSettings
 from pydantic import BaseModel
 
-from .config import URL, ECHO, SECRET_KEY
+from .config import (
+    URL, ECHO, SECRET_KEY, SMSC_LOGIN, SMSC_PSW, SMSC_TG, SMSC_URL
+)
 
 
 class DataBaseSetting(BaseModel):
@@ -22,10 +24,17 @@ class Auth(BaseModel):
 class Subscription(BaseModel):
     STANDARD_EXPIRE_DAYS: int = 1
 
+class SMSC(BaseModel):
+    SMSC_LOGIN: str = SMSC_LOGIN
+    SMSC_PSW: str = SMSC_PSW
+    SMSC_TG: str = SMSC_TG
+    SMSC_URL: str = SMSC_URL
+
 class Settings(BaseSettings):
     db_settings: DataBaseSetting = DataBaseSetting()
     api: API = API()
     auth: Auth = Auth()
     subscription: Subscription = Subscription()
+    smsc: SMSC = SMSC()
 
 settings: Settings = Settings()

@@ -1,13 +1,15 @@
 from typing import Optional
 from datetime import datetime, timedelta
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr, Field
 
 from core.models.enum.accountrole import AccountRole
 from core.models.enum.accountstatus import AccountStatus
 from core.models.enum.subscriptionstatus import SubscriptionStatus
 from core.settings import settings
 
+
+phone_number = Field(..., pattern=r"^\+?\d{10,15}$")
 
 class UserBase(BaseModel):
 
@@ -18,8 +20,8 @@ class UserCreate(UserBase):
     firstname: str
     lastname: str 
     patronymic: Optional[str] = None
-    phone: str
-    email: Optional[str] = None
+    phone: str = phone_number
+    email: Optional[EmailStr] = None
     password: bytes
     account_status: Optional[AccountStatus] = AccountStatus.PENDING
     account_role: Optional[AccountRole] = AccountRole.DEFAULT_USER
@@ -32,7 +34,7 @@ class UserUpdate(UserBase):
     lastname: Optional[str] = None 
     patronymic: Optional[str] = None
     phone: Optional[str] = None
-    email: Optional[str] = None
+    email: Optional[EmailStr] = None
     password: Optional[bytes] = None
     account_status: Optional[AccountStatus] = None
     account_role: Optional[AccountRole] = None

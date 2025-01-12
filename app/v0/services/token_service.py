@@ -18,21 +18,21 @@ class TokenMixin:
 class TokenEncodeService(TokenMixin):
     def __init__(
         self, data: Dict[str, uuid.UUID], expire_time: int, 
-        secret_key: str, algorithm: str
+        secret_key: str, algorithm: str, token_type: TypeToken
     ) -> None:
         super().__init__(secret_key=secret_key, algorithm=algorithm)
         self.expire_time = expire_time * self._time_multiplier()
         self.data = data
-        self.token_type = None
+        self.token_type = token_type
 
     def _time_multiplier(self) -> int:
         return 1
 
     def create_token_and_expire_time(self) -> Tuple[str, datetime]:
-        to_encode, expire_time = self.__create_to_encode_collection()
+        to_encode, expire_time = self._create_to_encode_collection()
         return jwt.encode(to_encode, self.secret_key, self.algorithm), expire_time
     
-    def __create_to_encode_collection(self) -> Tuple[Dict, datetime]:
+    def _create_to_encode_collection(self) -> Tuple[Dict, datetime]:
         to_encode = self.data.copy()
         expire_time = self.__get_time_expires_at()
         to_encode.update({"exp": expire_time})
@@ -50,9 +50,9 @@ class AccessTokenService(TokenEncodeService):
             data=data,
             expire_time=expire_time, 
             secret_key=secret_key, 
-            algorithm=algorithm
+            algorithm=algorithm,
+            token_type=TypeToken.ACCESS_TOKEN
         )
-        self.token_type = TypeToken.ACCESS_TOKEN
     
     def _time_multiplier(self) -> int:
         return 60
@@ -60,15 +60,15 @@ class AccessTokenService(TokenEncodeService):
 class RefreshTokenService(TokenEncodeService):
     def __init__(
         self, data: Dict[str, uuid.UUID], expire_time: int,
-        secret_key: str, algorithm: str
+        secret_key: str, algorithm: str, 
     ) -> None:
         super().__init__(
             data=data,
             expire_time=expire_time, 
             secret_key=secret_key, 
-            algorithm=algorithm
+            algorithm=algorithm,
+            token_type=TypeToken.REFRESH_TOKEN
         )
-        self.token_type = TypeToken.REFRESH_TOKEN
 
     def _time_multiplier(self) -> int:
         return 24 * 60 * 60
@@ -109,5 +109,5 @@ class TokenService:
 
         return await self.token_repository.create(data=data)
 
-    def verify_token(self) -> dict:
-        return self.token_verifier.verify_token()
+    def verify_token(self, token: str) -> dict:
+        return self.token_verifier.verify_token(token=token)

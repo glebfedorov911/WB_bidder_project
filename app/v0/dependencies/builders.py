@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from ..interfaces.builder_interface import IQueryBuilder
 from core.models.token import Token
 from core.models.user import User
+from core.models.verification_codes import VerificationCode
 from core.models.base import Base
 
 
@@ -45,4 +46,8 @@ class TokenBuilder(QueryBuilder):
 
 class UserBuilder(QueryBuilder):
     def __init__(self, model: User = User):
+        super().__init__(model=model)
+
+class VerCodeBuilder(QueryBuilder):
+    def __init__(self, model: VerificationCode = VerificationCode):
         super().__init__(model=model)

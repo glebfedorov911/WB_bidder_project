@@ -7,8 +7,11 @@ from ..services.token_service import (
     AccessTokenService, RefreshTokenService
 )
 from ..repositories.token_repository import TokenRepository
+from ..repositories.user_repository import UserRepository
+from ..services.user_service import UserService
 from ..schemas.token_schema import Token
 from ..schemas.user_schema import UserCreate
+from ..dependencies.password_hasher import PasswordHasher
 from core.settings import settings
 from core.models.databasehelper import database_helper
 
@@ -18,19 +21,10 @@ from core.models.enum.accountrole import AccountRole
 router = APIRouter(tags=["Auth"], prefix="/auth")
 
 
-@router.get("/test/")
-async def test(db_session: AsyncSession = Depends(database_helper.async_session_depends)):
-    user = UserCreate(
-        firstname="Test",
-        lastname="Test",
-        patronymic="Test",
-        phone="+71234567890",
-        email="test@mail.ru",
-        password="123456n",
-        account_status=AccountStatus.PENDING,
-        account_role=AccountRole.DEFAULT_USER,
-        is_superuser=False,
-        has_subscription=False
-    )
+@router.post("/test/")
+async def test(user_in: UserCreate, db_session: AsyncSession = Depends(database_helper.async_session_depends)):
+    repo = UserRepository(db_session=db_session)
+    hasher = PasswordHasher()
+    service = UserService(user_repository=repo, password_hasher=hasher)
 
-    return user
+    return await service.create(data=user_in)
