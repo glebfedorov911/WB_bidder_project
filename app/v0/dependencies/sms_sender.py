@@ -5,6 +5,9 @@ from core.settings import settings
 from .requestor import HttpxRequestor
 
 
+class SMSError(Exception):
+    ...
+
 class SMSCSender:
     URL = settings.smsc.URL
     CODE_ERROR_POSITION = 2
@@ -24,31 +27,24 @@ class SMSCSender:
     }
     UNKNOWN = "Unknown error"
 
-    def __init__(self):
+    def __init__(self, smsc_login: str, smsc_psw: str, smsc_tg: str):
         self.httpx_request: HttpxRequestor = HttpxRequestor()
-        self.smsc_login = settings.smsc.SMSC_LOGIN
-        self.smsc_psw = settings.smsc.SMSC_PSW
-        self.smsc_tg = settings.smsc.SMSC_TG
-
-    async def __sms_send(self, phone: str, code: str) -> list:
-        url = self.__url_creator()
-        return self.httpx_request.send(url=url)
+        self.smsc_login = smsc_login
+        self.smsc_psw = smsc_psw
+        self.smsc_tg = smsc_tg
 
     async def sms_send(self, phone: str, code: str) -> bool:
         try:
             response = await self.__sms_send()
-            type_response = response[self.TYPE_RESPONSE_POSITION]
-            if type_response == self.ERROR:
-                code_error = response[self.CODE_ERROR_POSITION]
-                raise ValueError(self.ERROR_CODE[code_error])
-            elif type_response == self.OK:
-                return True
-            else:
-                raise ValueError(self.UNKNOWN)
-        except ValueError as e:
+            return self.__check_status_responce(response=response)
+        except SMSError as e:
             raise e
         except Exception as e:
-            raise ValueError(f"Unknown error: {e}")
+            raise SMSError(f"Unknown error: {e}")
+
+    async def __sms_send(self, phone: str, code: str) -> list:
+        url = self.__url_creator()
+        return await self.httpx_request.send(url=url)
 
     def __url_creator(self, phone: str, code: str):
         params = {
@@ -61,3 +57,13 @@ class SMSCSender:
         return self.URL + "?" + '&'.join([
             f"{key}={value}" for key, value in params.items()
         ])
+
+    def __check_status_responce(self, response):
+        type_response = response[self.TYPE_RESPONSE_POSITION]
+        if type_response == self.ERROR:
+            code_error = response[self.CODE_ERROR_POSITION]
+            raise SMSError(self.ERROR_CODE[code_error])
+        elif type_response == self.OK:
+            return True
+        else:
+            raise SMSError(self.UNKNOWN)

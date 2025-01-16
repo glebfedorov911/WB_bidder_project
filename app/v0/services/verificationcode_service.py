@@ -3,33 +3,28 @@ import uuid
 from ..dependencies.code_generator import CodeGenerator
 from ..dependencies.sms_sender import SMSCSender
 from ..interfaces.repository_interface import IVerCodeRepository
-from ..schemas.verificationcode_schema import VerCodeCreate
-
+from ..schemas.verificationcode_schema import VerCodeCreate, VerCodeUpdate
 
 
 class SMSService:
     def __init__(
         self,
-        code_generator: CodeGenerator,
         sms_sender: SMSCSender,
-        ver_code_repo: IVerCodeRepository
     ):
-        self.code_generator = code_generator
         self.sms_sender = sms_sender
-        self.ver_code_repo = ver_code_repo
-    #ЗДЕСЬ ПРОПИСАНА ОТПРАВКА СМС(ПОТОМ УДАЛИТЬ КОММЕНТЫ)
-    async def send_sms(self, phone: str):
-        code = self.__code_generate()
-        # self.sms_sender.sms_send(phone=phone, code=code)
+
+    async def send_sms(self, phone: str, code: str) -> bool:
+        return self.sms_sender.sms_send(phone=phone, code=code)
     
-    async def create(self, user_id: uuid.UUID, code: str):
-        data = VerCodeCreate(
+class VerificationCodeManagerService:
+    def __init__(
+        self,
+        vc_repo: IVerCodeRepository
+    ):
+        self.vc_repo = vc_repo
 
-        )
+    async def create(self, data: VerCodeCreate):
+        return await self.vc_repo.create(data=data)
 
-    def __code_generate(self):
-        return self.code_generator.generate_code()
-
-class VerificationCodeService:
-    #тут будет прописано создание кода, редактирование и получение
-    ...
+    async def update(self, id: uuid.UUID, data: VerCodeUpdate):
+        return await self.vc_repo.update(id=id, data=data)

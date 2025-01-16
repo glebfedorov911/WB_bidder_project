@@ -21,7 +21,7 @@ class VerificationCode(DateMixin, VerificationCodeAndTokenMixin, Base):
     expires_at: Mapped[datetime] = mapped_column(
         default=lambda: VerificationCode.calculate_expiration()
     )
-    is_used: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_used: Mapped[bool] = mapped_column(Boolean, default=True)
 
     EXPIRES_MINUTE = 30
 
