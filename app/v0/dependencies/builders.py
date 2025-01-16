@@ -33,7 +33,7 @@ class QueryBuilder(IQueryBuilder):
         return self
 
     async def execute(self, db_session: AsyncSession) -> List[model_type]:
-        result: Result = await session.execute(self.query)
+        result: Result = await db_session.execute(self.query)
         self.query = self.__query_to_start()
         return result.scalars().all()
 

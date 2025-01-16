@@ -22,7 +22,7 @@ class UserCreate(UserBase):
     patronymic: Optional[str] = None
     phone: str = phone_number
     email: Optional[EmailStr] = None
-    password: bytes
+    password: str | bytes
     account_status: Optional[AccountStatus] = AccountStatus.PENDING
     account_role: Optional[AccountRole] = AccountRole.DEFAULT_USER
     is_superuser: bool = False
@@ -35,7 +35,7 @@ class UserUpdate(UserBase):
     patronymic: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
-    password: Optional[bytes] = None
+    password: Optional[str | bytes] = None
     account_status: Optional[AccountStatus] = None
     account_role: Optional[AccountRole] = None
     is_superuser: Optional[bool] = None
