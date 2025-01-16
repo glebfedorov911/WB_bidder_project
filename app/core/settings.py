@@ -17,8 +17,8 @@ class API(BaseModel):
 class Auth(BaseModel):
     SECRET_KEY: str = SECRET_KEY
     ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    ACCESS_TOKEN_EXPIRE_SECONDS: int = 1800
+    REFRESH_TOKEN_EXPIRE_SECONDS: int = 604_800
     TOKEN_TYPE: str = "Bearer"
 
 class Subscription(BaseModel):
