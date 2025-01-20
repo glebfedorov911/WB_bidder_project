@@ -3,7 +3,7 @@ __all__ = {
     "DataBaseHelper",
     "database_helper",
     "User",
-    "Token",
+    "RefreshToken",
     "VerificationCode"
 }
 
@@ -12,5 +12,5 @@ __all__ = {
 from .base import Base
 from .databasehelper import DataBaseHelper, database_helper
 from .user import User
-from .token import Token
+from .token import RefreshToken
 from .verification_codes import VerificationCode

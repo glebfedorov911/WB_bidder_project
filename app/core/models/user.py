@@ -15,7 +15,7 @@ from core.settings import settings
 
 
 if TYPE_CHECKING:
-    from .token import Token
+    from .token import RefreshToken
     from .verification_codes import VerificationCode
 
 
@@ -52,10 +52,10 @@ class User(DateMixin, Base):
         DateTime, nullable=True, onupdate=func.now()
     )
     subscription_active_until: Mapped[datetime] = mapped_column(
-        DateTime, nullable=True, index=True
+        DateTime, nullable=True, index=True, default=lambda: User.default_subscription_end()
     )
 
-    tokens = relationship("Token", back_populates="user")
+    tokens = relationship("RefreshToken", back_populates="user")
     code = relationship("VerificationCode", back_populates="user")
 
     @property
@@ -65,9 +65,7 @@ class User(DateMixin, Base):
             parts_name.append(self.patronymic)
         return " ".join(parts_name).strip()
 
-    def set_subcription_end(self):
+    @staticmethod
+    def default_subscription_end() -> datetime:
         SUBSCRIPTION_END = 1
-        if self.subscription_status == SubscriptionStatus.STANDARD:
-            self.subscription_active_until = datetime.utcnow() + timedelta(days=settings.subscription.STANDARD_EXPIRE_DAYS)
-        else:
-            self.subscription_active_until = datetime.utcnow() - timedelta(days=SUBSCRIPTION_END)
+        return datetime.utcnow() + timedelta(days=SUBSCRIPTION_END)

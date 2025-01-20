@@ -6,10 +6,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
 from ..interfaces.builder_interface import IQueryBuilder
-from core.models.token import Token
+from core.models.token import RefreshToken
 from core.models.user import User
 from core.models.verification_codes import VerificationCode
 from core.models.base import Base
+
+from .type_operation import TypeOperation
 
 
 schema_type = TypeVar("S", bound=BaseModel) 
@@ -28,8 +30,17 @@ class QueryBuilder(IQueryBuilder):
         self.query = self.query.order_by(*columns)
         return self
 
-    def add_condition(self, column: ColumnElement, value: any) -> Self:
-        self.query = self.query.where(column == value)
+    def add_condition(self, column: ColumnElement, value: any, type_operation: str = "e") -> Self:
+        if type_operation == TypeOperation.EQUAL:
+            self.query = self.query.where(column == value)
+        elif type_operation == TypeOperation.GREATER:
+            self.query = self.query.where(column < value)
+        elif type_operation == TypeOperation.GREATER_OR_EQUAL:
+            self.query = self.query.where(column <= value)
+        elif type_operation == TypeOperation.LOWER:
+            self.query = self.query.where(column > value)
+        elif type_operation == TypeOperation.LOWER_OR_EQUAL:
+            self.query = self.query.where(column >= value)
         return self
 
     async def execute(self, db_session: AsyncSession) -> List[model_type]:
@@ -41,7 +52,7 @@ class QueryBuilder(IQueryBuilder):
         return select(self.model)
 
 class TokenBuilder(QueryBuilder):
-    def __init__(self, model: Token = Token):
+    def __init__(self, model: RefreshToken = RefreshToken):
         super().__init__(model=model)
 
 class UserBuilder(QueryBuilder):

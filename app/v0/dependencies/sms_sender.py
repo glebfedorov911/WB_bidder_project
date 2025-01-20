@@ -9,7 +9,7 @@ class SMSError(Exception):
     ...
 
 class SMSCSender:
-    URL = settings.smsc.URL
+    URL = settings.smsc.SMSC_URL
     CODE_ERROR_POSITION = 2
     TYPE_RESPONSE_POSITION = 0
     ERROR = "ERROR"
@@ -35,7 +35,7 @@ class SMSCSender:
 
     async def sms_send(self, phone: str, code: str) -> bool:
         try:
-            response = await self.__sms_send()
+            response = await self.__sms_send(phone=phone, code=code)
             return self.__check_status_responce(response=response)
         except SMSError as e:
             raise e
@@ -43,15 +43,15 @@ class SMSCSender:
             raise SMSError(f"Unknown error: {e}")
 
     async def __sms_send(self, phone: str, code: str) -> list:
-        url = self.__url_creator()
+        url = self.__url_creator(phone=phone, code=code)
         return await self.httpx_request.send(url=url)
 
     def __url_creator(self, phone: str, code: str):
         params = {
             "login": self.smsc_login,
             "psw": self.smsc_psw,
-            "phone": phone,
-            "code": code,
+            "phones": phone,
+            "mes": code,
             "tg": self.smsc_tg
         }
         return self.URL + "?" + '&'.join([

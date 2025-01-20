@@ -22,12 +22,7 @@ class UserCreate(UserBase):
     patronymic: Optional[str] = None
     phone: str = phone_number
     email: Optional[EmailStr] = None
-    password: str | bytes
-    account_status: Optional[AccountStatus] = AccountStatus.PENDING
-    account_role: Optional[AccountRole] = AccountRole.DEFAULT_USER
-    is_superuser: bool = False
-    has_subscription: bool = False
-    subscription_active_until: Optional[datetime] = None
+    password: str
 
 class UserUpdate(UserBase):
     firstname: Optional[str] = None
@@ -35,9 +30,18 @@ class UserUpdate(UserBase):
     patronymic: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
-    password: Optional[str | bytes] = None
-    account_status: Optional[AccountStatus] = None
-    account_role: Optional[AccountRole] = None
-    is_superuser: Optional[bool] = None
-    has_subscription: Optional[bool] = None
-    subscription_active_until: Optional[datetime] = None
+    password: Optional[str] = None
+
+class UserSMSSend(UserBase):
+    phone: str = phone_number
+
+class UserRead(UserBase):
+    firstname: str
+    lastname: str 
+    patronymic: str
+    phone: str = phone_number
+    email: EmailStr
+    password: str
+
+class AccountStatusSchema(UserBase):
+    account_status: AccountStatus

@@ -6,11 +6,11 @@ class PasswordHasher:
     @staticmethod
     def hash_password(password: str) -> str:
         salt = bcrypt.gensalt()
-        return bcrypt.hashpw(
+        return bytes(bcrypt.hashpw(
             password.encode('utf-8'), 
             salt
-        ).decode("utf-8")
-    
+        ))
+
     @staticmethod
     def verify_password(plain_password: str, hashed_password: str) -> bool:
         return bcrypt.checkpw(

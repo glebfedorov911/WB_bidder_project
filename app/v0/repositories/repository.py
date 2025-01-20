@@ -6,12 +6,14 @@ from pydantic import BaseModel
 
 from ..interfaces.repository_interface import IRepository
 from ..dependencies.builders import QueryBuilder
+from ..dependencies.type_operation import TypeOperation
+from ..dependencies.exceptions import RepositoryException
 from core.models.base import Base
-
 
 schema_type = TypeVar("S", bound=BaseModel) 
 model_type = TypeVar("M", bound=Base)
 builder_type = TypeVar("B", bound=QueryBuilder) 
+
 
 class Repository(IRepository):
     def __init__(
@@ -28,12 +30,13 @@ class Repository(IRepository):
         try:
             return await self._add_data_to_table(data=data)
         except Exception as e:
-            raise ValueError("Error create. Not valid data")
+            print(e)
+            raise RepositoryException("Error create. Not valid data")
 
     async def _add_data_to_table(self, data: model_type) -> model_type:
         data_to_table = self.model(**data.model_dump())
         return await self._save_data(data=data_to_table)
-
+    
     async def get(self) -> List[model_type]:
         return await self._get_all_data()
 
@@ -41,20 +44,20 @@ class Repository(IRepository):
         try:
             return await self._get_data_by_id(id=id)
         except Exception as e:
-            raise ValueError("Not found with this id")
+            raise RepositoryException("Not found with this id")
             
     async def update(self, id: uuid.UUID, data: schema_type) -> model_type:
         try:
-            return self._update_data(id=id, data=data)
+            return await self._update_data(id=id, data=data)
         except Exception as e:
-            raise ValueError("Error update user. Not exists id")
+            raise RepositoryException("Error update. Not exists id")
 
     async def delete(self, id: uuid.UUID) -> bool:
         try:
             self._delete_data(id=id)
             return True
         except Exception as e:
-            raise ValueError("Error delete user. Not exists id")
+            raise RepositoryException("Error delete. Not exists id")
 
     async def _update_data(self, id: uuid.UUID, data: schema_type):
         data_from_table = self._ensure_data_exists(await self._get_data_by_id(id=id))
@@ -71,7 +74,7 @@ class Repository(IRepository):
 
     def _update_data_record(self, data: schema_type, data_from_table: model_type) -> model_type:
         for key, value in data:
-            if value:
+            if value is not None:
                 setattr(data_from_table, key, value)
         return data_from_table
 
@@ -85,13 +88,19 @@ class Repository(IRepository):
 
     def _ensure_data_exists(self, data: model_type) -> model_type:
         if data is None:
-            raise ValueError("Does not exists data")
+            raise RepositoryException("Does not exists data")
         return data
 
     async def _get_all_data(self) -> List[model_type]:
         return await self.builder.execute(self.db_session)
 
     async def _get_data_by_id(self, id: uuid.UUID) -> Optional[model_type]:
-        self.builder = self.builder.add_condition(self.model.id, id)
+        return await self._get_result_by_condition([
+            (self.model.id, id, TypeOperation.EQUAL)
+        ])
+
+    async def _get_result_by_condition(self, condition_by_value_and_operation: list[tuple]):
+        for condition, value, type_operation in condition_by_value_and_operation:
+            self.builder = self.builder.add_condition(condition, value, type_operation)
         result = await self.builder.execute(self.db_session)
         return result[0] if result else None

@@ -12,14 +12,13 @@ class Token(BaseModel):
     refresh_token: str
     token_type: str = settings.auth.TOKEN_TYPE
 
-class TokenCreate(BaseModel):
+class RefreshTokenCreate(BaseModel):
     token: str
-    token_type: str
     expires_at: datetime
     user_id: Optional[uuid.UUID] = None
 
-class TokenUpdate(BaseModel):
+class RefreshTokenUpdate(BaseModel):
     token: Optional[str] = None
-    token_type: Optional[str] = None
     expires_at: Optional[datetime] = None 
+    using: Optional[bool] = None
     user_id: Optional[uuid.UUID] = None

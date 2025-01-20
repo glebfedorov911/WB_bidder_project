@@ -3,32 +3,35 @@ from datetime import datetime, timedelta
 import uuid
 
 import jwt
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+from hashlib import sha256
 
 from ..interfaces.repository_interface import ITokenRepository
 from ..interfaces.token_creator_interface import ITokenCreator
-from ..schemas.token_schema import TokenCreate
+from ..schemas.token_schema import RefreshTokenCreate
 from ..dependencies.jwt_token_creator import JWTTokenCreator
-from core.models.token import Token
+from ..repositories.token_repository import TokenRepository
+from core.models.token import RefreshToken
 from core.models.enum.tokentype import TypeToken
+from core.models.databasehelper import database_helper
+from core.settings import settings
 
 
 class TokenMixin:
-    def __init__(self, secret_key: str, algorithm: str, token_creator: ITokenCreator):
-        self.secret_key = secret_key
-        self.algorithm = algorithm
+    def __init__(self, token_creator: ITokenCreator):
         self.token_creator = token_creator
 
-class TokenEncodeService(TokenMixin):
+class TokenCreatorService(TokenMixin):
     def __init__(
         self, 
-        data: Dict[str, uuid.UUID], 
-        secret_key: str, 
-        algorithm: str, 
-        token_type: TypeToken
+        data: Dict[str, str], 
+        expire_time: int, 
+        token_creator: ITokenCreator
     ) -> None:
-        super().__init__(secret_key=secret_key, algorithm=algorithm)
+        super().__init__(token_creator=token_creator)
         self.data = data
-        self.token_type = token_type
+        self.expire_time = expire_time
 
     def create_token_and_expire_time(self) -> Tuple[str, datetime]:
         to_encode, expire_time = self._create_to_encode_collection()
@@ -36,39 +39,36 @@ class TokenEncodeService(TokenMixin):
     
     def _create_to_encode_collection(self) -> Tuple[Dict, datetime]:
         to_encode = self.data.copy()
-        expire_time = self.expire_time_manage._get_time_expires_at()
+        expire_time = self._get_expire_time()
         to_encode.update({"exp": expire_time})
         return to_encode, expire_time
 
-class AccessTokenService(TokenEncodeService):
+    def _get_expire_time(self):
+        return datetime.now() + timedelta(seconds=self.expire_time)
+
+class AccessTokenService(TokenCreatorService):
     def __init__(
-        self, data: Dict[str, uuid.UUID], expire_time: int, 
-        secret_key: str, algorithm: str
+        self, data: Dict[str, str], expire_time: int, token_creator: ITokenCreator
     ) -> None:
         super().__init__(
             data=data,
             expire_time=expire_time, 
-            secret_key=secret_key, 
-            algorithm=algorithm,
-            token_type=TypeToken.ACCESS_TOKEN
+            token_creator=token_creator
         )
 
-class RefreshTokenService(TokenEncodeService):
+class RefreshTokenService(TokenCreatorService):
     def __init__(
-        self, data: Dict[str, uuid.UUID], expire_time: int,
-        secret_key: str, algorithm: str, 
+        self, data: Dict[str, str], expire_time: int, token_creator: ITokenCreator
     ) -> None:
         super().__init__(
             data=data,
             expire_time=expire_time, 
-            secret_key=secret_key, 
-            algorithm=algorithm,
-            token_type=TypeToken.REFRESH_TOKEN
+            token_creator=token_creator
         )
 
 class TokenVerifyService(TokenMixin):
-    def __init__(self, secret_key: str, algorithm: str):
-        super().__init__(secret_key=secret_key, algorithm=algorithm)
+    def __init__(self, token_creator: ITokenCreator):
+        super().__init__(token_creator=token_creator)
 
     def verify_token(self, token: str):
         try:
@@ -80,71 +80,70 @@ class TokenVerifyService(TokenMixin):
         return self.token_creator.decode(token)
 
 class TokenServiceFactory:
-    def __init__(self, secret_key: str, algorithm: str):
-        self.secret_key = secret_key
-        self.algorithm = algorithm
+    def __init__(self, token_creator: ITokenCreator):
+        self.token_creator = token_creator
 
-    def create_access_token_service(self, expire_time: int, data: Dict[str, uuid.UUID]) -> AccessTokenService:
+    def create_access_token_service(self, expire_time: int, data: Dict[str, str]) -> AccessTokenService:
         return AccessTokenService(
             data=data,
             expire_time=expire_time,
-            secret_key=self.secret_key,
-            algorithm=self.algorithm
+            token_creator=self.token_creator
         )
 
-    def create_refresh_token_service(self, expire_time: int, data: Dict[str, uuid.UUID]) -> AccessTokenService:
+    def create_refresh_token_service(self, expire_time: int, data: Dict[str, str]) -> AccessTokenService:
         return RefreshTokenService(
             data=data,
             expire_time=expire_time,
-            secret_key=self.secret_key,
-            algorithm=self.algorithm
+            token_creator=self.token_creator
         )
 
 class TokenFabricService:
-    def __init__(self, secret_key: str, algorithm: str, base_expire_time: int):
-        self.secret_key = secret_key
-        self.algorithm = algorithm
-        self.token_service_factory = TokenServiceFactory(secret_key=secret_key, algorithm=algorithm)
+    def __init__(self, token_creator: ITokenCreator):
+        self.token_creator = token_creator
+        self.token_service_factory = TokenServiceFactory(token_creator=self.token_creator)
 
-    def create_access_token_service(self, expire_time: int, data: Dict[str, uuid.UUID]) -> AccessTokenService:
+    def create_access_token_service(self, expire_time: int, data: Dict[str, str]) -> AccessTokenService:
         return self.token_service_factory.create_access_token_service(
             expire_time=expire_time, data=data
         )
     
-    def create_refresh_token_service(self, expire_time: int, data: Dict[str, uuid.UUID]) -> RefreshTokenService:
+    def create_refresh_token_service(self, expire_time: int, data: Dict[str, str]) -> RefreshTokenService:
         return self.token_service_factory.create_refresh_token_service(
             expire_time=expire_time, data=data
         )
 
-class TokenManagerService:
-    def __init__(
-        self,
-        token_repository: ITokenRepository
-    ):
-        self.token_repository = token_repository
+class TokenService:
+    def __init__(self, token_fabric: TokenFabricService, expire_access_time: int, expire_refresh_time: int, data: dict):
+        self.token_fabric = token_fabric
+        self.expire_access_time = expire_access_time
+        self.expire_refresh_time = expire_refresh_time
+        self.data = data
+        self.access_token_service = self.token_fabric.create_access_token_service(expire_time=self.expire_access_time, data=self.data)
+        self.refresh_token_service = self.token_fabric.create_refresh_token_service(expire_time=self.expire_refresh_time, data=self.data)
 
-# class TokenService:
-#     def __init__(
-#         self,
-#         token_repository: ITokenRepository,
-#         type_token_service: TokenEncodeService,
-#         token_verifier: TokenVerifyService,
-#     ) -> None:
-#         self.token_repository = token_repository
-#         self.type_token_service = type_token_service
-#         self.token_verifier = token_verifier
+    def create_tokens(self) -> tuple[str, datetime, str, datetime]:
+        access_token, expire_access = self.access_token_service.create_token_and_expire_time()
+        refresh_token, expire_refresh = self.refresh_token_service.create_token_and_expire_time()
 
-#     async def get_token(self, user_id: uuid.UUID) -> Token:
-#         token, expire_time = self.type_token_service.create_token_and_expire_time()
+        return access_token, expire_access, refresh_token, expire_refresh
 
-#         data = TokenCreate(
-#             token=token,
-#             token_type=self.type_token_service.token_type,
-#             expires_at=expire_time,
-#             user_id=user_id
-#         )
+class TokenEncodeService:
 
-#         return await self.token_repository.create(data=data)
+    @staticmethod
+    def encode_token(token: str):
+        return sha256(token.encode()).hexdigest()
 
-#     def verify_token(self, token: str) -> dict:
-#         return self.token_verifier.verify_token(token=token)
+def get_jwt_token_creator():
+    return JWTTokenCreator(secret_key=settings.auth.SECRET_KEY, algorithm=settings.auth.ALGORITHM)
+
+def get_token_fabric_service(token_creator: ITokenCreator = Depends(get_jwt_token_creator)):
+    return TokenFabricService(token_creator=token_creator)
+
+def get_token_repository(db_session: AsyncSession = Depends(database_helper.async_session_depends)):
+    return TokenRepository(db_session=db_session)
+
+def get_token_verify_service(token_creator: ITokenCreator = Depends(get_jwt_token_creator)):
+    return TokenVerifyService(token_creator=token_creator)
+
+def get_token_encode_service():
+    return TokenEncodeService()

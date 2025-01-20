@@ -1,9 +1,15 @@
 import uuid
 
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from ..dependencies.code_generator import CodeGenerator
 from ..dependencies.sms_sender import SMSCSender
 from ..interfaces.repository_interface import IVerCodeRepository
 from ..schemas.verificationcode_schema import VerCodeCreate, VerCodeUpdate
+from core.models.databasehelper import database_helper
+from ..repositories.verificationcode_repository import VerCodeRepository
+from core.settings import settings
 
 
 class SMSService:
@@ -14,7 +20,7 @@ class SMSService:
         self.sms_sender = sms_sender
 
     async def send_sms(self, phone: str, code: str) -> bool:
-        return self.sms_sender.sms_send(phone=phone, code=code)
+        return await self.sms_sender.sms_send(phone=phone, code=code)
     
 class VerificationCodeManagerService:
     def __init__(
@@ -26,5 +32,64 @@ class VerificationCodeManagerService:
     async def create(self, data: VerCodeCreate):
         return await self.vc_repo.create(data=data)
 
-    async def update(self, id: uuid.UUID, data: VerCodeUpdate):
+    async def update_used_status(self, id: uuid.UUID, is_used: bool):
+        data = VerCodeUpdate(
+            is_used=is_used
+        )
         return await self.vc_repo.update(id=id, data=data)
+
+
+class VerificationCodeCompare:
+    def __init__(
+        self, vc_repo: IVerCodeRepository
+    ):
+        self.vc_repo = vc_repo
+
+    async def get_ver_code(self, user_id: uuid.UUID, code: str) -> bool:
+        return await self.vc_repo.get_by_user_id_and_code(user_id=user_id, code=code)
+
+class VerificationService:
+    def __init__(self, generator: CodeGenerator, manager: VerificationCodeManagerService, sms: SMSService):
+        self.manager = manager
+        self.sms = sms
+        self.generator = generator
+
+    async def send_code(self, user_id: uuid.UUID, phone: str) -> dict:
+        code = self.generator.generate_code()
+        await self.sms.send_sms(phone=phone, code=code)
+        ver_code = VerCodeCreate(code=code, user_id=user_id)
+        await self.manager.create(data=ver_code)
+        return {"message": "Verification code send successfully"}
+
+def get_code_generator() -> CodeGenerator:
+    return CodeGenerator()
+
+def get_ver_code_repository(db_session: AsyncSession = Depends(database_helper.async_session_depends)) -> IVerCodeRepository:
+    return VerCodeRepository(db_session=db_session)
+
+def get_ver_code_manager(ver_code_repo: IVerCodeRepository = Depends(get_ver_code_repository)) -> VerificationCodeManagerService:
+    return VerificationCodeManagerService(vc_repo=ver_code_repo)
+
+def get_sms_sender() -> SMSCSender:
+    return SMSCSender(
+        smsc_login=settings.smsc.SMSC_LOGIN,
+        smsc_psw=settings.smsc.SMSC_PSW,
+        smsc_tg=settings.smsc.SMSC_TG
+    )
+
+def get_sms_service(sms_sender: SMSCSender = Depends(get_sms_sender)) -> SMSService:
+    return SMSService(sms_sender=sms_sender)
+
+def get_verification_service(
+    code_generator: CodeGenerator = Depends(get_code_generator),
+    ver_code_manager: VerificationCodeManagerService = Depends(get_ver_code_manager),
+    sms_service: SMSService = Depends(get_sms_service),
+) -> VerificationService:
+    return VerificationService(
+        generator=code_generator,
+        manager=ver_code_manager,
+        sms=sms_service
+    )
+
+def get_verification_compare(ver_code_repo: IVerCodeRepository = Depends(get_ver_code_repository)) -> VerificationCodeCompare:
+    return VerificationCodeCompare(vc_repo=ver_code_repo)

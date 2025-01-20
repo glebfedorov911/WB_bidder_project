@@ -22,7 +22,7 @@ class IQueryBuilder(ABC):
         ...
 
     @abstractmethod
-    def add_condition(self, column: ColumnElement, value: any) -> Self:
+    def add_condition(self, column: ColumnElement, value: any, type_operation: str = "e") -> Self:
         ...
 
     @abstractmethod

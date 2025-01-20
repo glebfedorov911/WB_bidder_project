@@ -23,30 +23,36 @@ class IRepository(ABC):
         ...
 
     @abstractmethod
-    def create(self, data: schema_type) -> model_type:
+    async def create(self, data: schema_type) -> model_type:
         ...
 
     @abstractmethod
-    def get(self) -> List[model_type]:
+    async def get(self) -> List[model_type]:
         ...
 
     @abstractmethod
-    def get_by_id(self, id: uuid.UUID) -> model_type:
+    async def get_by_id(self, id: uuid.UUID) -> model_type:
         ...
 
     @abstractmethod
-    def update(self, id: uuid.UUID, data: schema_type) -> model_type:
+    async def update(self, id: uuid.UUID, data: schema_type) -> model_type:
         ...
 
     @abstractmethod
-    def delete(self, id: uuid.UUID) -> bool:
+    async def delete(self, id: uuid.UUID) -> bool:
         ...
 
 class ITokenRepository(IRepository):
     ...
 
 class IUserRepository(IRepository):
-    ...
+    
+    @abstractmethod
+    async def get_by_phone(self, phone: str) -> model_type:
+        ...
 
 class IVerCodeRepository(IRepository):
-    ...
+    
+    @abstractmethod
+    async def get_by_user_id_and_code(self, user_id: uuid.UUID, code: str) -> model_type:
+        ...
