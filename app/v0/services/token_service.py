@@ -3,17 +3,17 @@ from datetime import datetime, timedelta
 import uuid
 
 import jwt
-from fastapi import Depends
+from fastapi import Depends, HTTPException, status, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from hashlib import sha256
 
 from ..interfaces.repository_interface import ITokenRepository
 from ..interfaces.token_creator_interface import ITokenCreator
-from ..schemas.token_schema import RefreshTokenCreate
+from ..schemas.token_schema import RefreshTokenCreate, RefreshTokenUpdate
 from ..dependencies.jwt_token_creator import JWTTokenCreator
+from ..dependencies.encoder import Encoder, get_encoder
 from ..repositories.token_repository import TokenRepository
 from core.models.token import RefreshToken
-from core.models.enum.tokentype import TypeToken
 from core.models.databasehelper import database_helper
 from core.settings import settings
 
@@ -67,16 +67,28 @@ class RefreshTokenService(TokenCreatorService):
         )
 
 class TokenVerifyService(TokenMixin):
-    def __init__(self, token_creator: ITokenCreator):
-        super().__init__(token_creator=token_creator)
+    def __init__(self, token_creator: ITokenCreator, encoder: Encoder):
+        super().__init__(token_creator=token_creator) 
+        self.encoder = encoder
+        self.except_bad_auth = HTTPException(
+            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+            detail="Bad auth"
+        )
 
-    def verify_token(self, token: str):
+    def verify_token(self, token: str, request: Request):
         try:
-            return self.__decode_token(token=token)
+            payload = self.__decode_token(token=token)
+            self.__check_user_agent(user_agent=request.headers.get("user-agent"), payload=payload)
+            
+            return payload
         except Exception as e:
             print(e)
 
-    def __decode_token(self, token: str):
+    def __check_user_agent(self, user_agent: str, payload: dict):
+        if self.encoder.encode(user_agent) != payload.get('user_agent'):
+            raise self.except_bad_auth
+
+    def __decode_token(self, token: str) -> dict:
         return self.token_creator.decode(token)
 
 class TokenServiceFactory:
@@ -127,11 +139,38 @@ class TokenService:
 
         return access_token, expire_access, refresh_token, expire_refresh
 
+class TokenManagerService:
+    def __init__(self, token_repository: ITokenRepository):
+        self.token_repository = token_repository        
+
+    async def set_token_incative(self, encode_refresh_token: bytes):
+        try:
+            token: RefreshToken = await self.__get_token_by_encode(encode_refresh_token=encode_refresh_token)
+            if not token:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Token not found"
+                )
+            data = RefreshTokenUpdate(
+                using=False
+            )
+            return await self.token_repository.update(id=token.id, data=data)
+        except:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Token already not active"
+            )
+
+    async def __get_token_by_encode(self, encode_refresh_token: bytes):
+        return await self.token_repository.get_token_by_encode(encode_refresh_token=encode_refresh_token)
+
 class TokenEncodeService:
 
-    @staticmethod
-    def encode_token(token: str):
-        return sha256(token.encode()).hexdigest()
+    def __init__(self, encoder: Encoder):
+        self.encoder = encoder
+
+    def encode_token(self, token: str):
+        return self.encoder.encode(data=token)
 
 def get_jwt_token_creator():
     return JWTTokenCreator(secret_key=settings.auth.SECRET_KEY, algorithm=settings.auth.ALGORITHM)
@@ -142,8 +181,16 @@ def get_token_fabric_service(token_creator: ITokenCreator = Depends(get_jwt_toke
 def get_token_repository(db_session: AsyncSession = Depends(database_helper.async_session_depends)):
     return TokenRepository(db_session=db_session)
 
-def get_token_verify_service(token_creator: ITokenCreator = Depends(get_jwt_token_creator)):
-    return TokenVerifyService(token_creator=token_creator)
+def get_token_verify_service(
+    token_creator: ITokenCreator = Depends(get_jwt_token_creator),
+    encoder: Encoder = Depends(get_encoder)
+):
+    return TokenVerifyService(token_creator=token_creator, encoder=encoder)
 
-def get_token_encode_service():
-    return TokenEncodeService()
+def get_token_encode_service(
+    encoder: Encoder = Depends(get_encoder)
+) -> TokenEncodeService:
+    return TokenEncodeService(encoder=encoder)
+
+def get_token_manager_service(token_repo: ITokenRepository = Depends(get_token_repository)) -> TokenManagerService:
+    return TokenManagerService(token_repository=token_repo)

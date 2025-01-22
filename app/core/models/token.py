@@ -8,7 +8,6 @@ from sqlalchemy.dialects.postgresql import UUID
 
 from .base import Base
 from .mixin import VerificationCodeAndTokenMixin, DateMixin
-from .enum.tokentype import TypeToken
 from core.settings import settings
 
 if TYPE_CHECKING:

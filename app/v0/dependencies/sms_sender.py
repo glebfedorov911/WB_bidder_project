@@ -3,10 +3,9 @@ import httpx
 
 from core.settings import settings
 from .requestor import HttpxRequestor
+from .exceptions import SMSError
 
 
-class SMSError(Exception):
-    ...
 
 class SMSCSender:
     URL = settings.smsc.SMSC_URL

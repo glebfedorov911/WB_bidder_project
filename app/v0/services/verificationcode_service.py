@@ -10,6 +10,8 @@ from ..schemas.verificationcode_schema import VerCodeCreate, VerCodeUpdate
 from core.models.databasehelper import database_helper
 from ..repositories.verificationcode_repository import VerCodeRepository
 from core.settings import settings
+from core.models.enum.typecode import TypeCode
+from ..dependencies.exceptions import SMSError
 
 
 class SMSService:
@@ -45,8 +47,8 @@ class VerificationCodeCompare:
     ):
         self.vc_repo = vc_repo
 
-    async def get_ver_code(self, user_id: uuid.UUID, code: str) -> bool:
-        return await self.vc_repo.get_by_user_id_and_code(user_id=user_id, code=code)
+    async def get_ver_code(self, user_id: uuid.UUID, code: str, type_code: TypeCode) -> bool:
+        return await self.vc_repo.get_by_user_id_and_code(user_id=user_id, code=code, type_code=type_code)
 
 class VerificationService:
     def __init__(self, generator: CodeGenerator, manager: VerificationCodeManagerService, sms: SMSService):
@@ -54,12 +56,21 @@ class VerificationService:
         self.sms = sms
         self.generator = generator
 
-    async def send_code(self, user_id: uuid.UUID, phone: str) -> dict:
-        code = self.generator.generate_code()
-        await self.sms.send_sms(phone=phone, code=code)
+    async def send_code(self, user_id: uuid.UUID, phone: str, type_code: str | None = None) -> dict:
+        try:
+            code = self.generator.generate_code()
+            await self.sms.send_sms(phone=phone, code=code)
+            ver_code = self.__create_ver_code_create_scheme(code=code, user_id=user_id, phone=phone, type_code=type_code)
+            await self.manager.create(data=ver_code)
+            return {"message": "Verification code send successfully"}
+        except SMSError as e:
+            raise e
+
+    def __create_ver_code_create_scheme(self, user_id: uuid.UUID, code: str, phone: str, type_code: str | None = None):
         ver_code = VerCodeCreate(code=code, user_id=user_id)
-        await self.manager.create(data=ver_code)
-        return {"message": "Verification code send successfully"}
+        if type_code:
+            ver_code.type_code = type_code
+        return ver_code
 
 def get_code_generator() -> CodeGenerator:
     return CodeGenerator()

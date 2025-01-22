@@ -10,7 +10,7 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 
-from app.core.models.types.emailtype import EmailType
+from core.models.types.emailtype import EmailType
 
 
 # revision identifiers, used by Alembic.

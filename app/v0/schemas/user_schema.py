@@ -21,8 +21,8 @@ class UserCreate(UserBase):
     lastname: str 
     patronymic: Optional[str] = None
     phone: str = phone_number
-    email: Optional[EmailStr] = None
-    password: str
+    email: EmailStr
+    password: str | bytes
 
 class UserUpdate(UserBase):
     firstname: Optional[str] = None
@@ -30,18 +30,15 @@ class UserUpdate(UserBase):
     patronymic: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
-    password: Optional[str] = None
-
-class UserSMSSend(UserBase):
-    phone: str = phone_number
+    password: Optional[str | bytes] = None
 
 class UserRead(UserBase):
     firstname: str
     lastname: str 
     patronymic: str
     phone: str = phone_number
-    email: EmailStr
-    password: str
+    email: EmailStr | None = None
+    account_status: AccountStatus
 
 class AccountStatusSchema(UserBase):
     account_status: AccountStatus

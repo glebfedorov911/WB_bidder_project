@@ -22,3 +22,6 @@ class RefreshTokenUpdate(BaseModel):
     expires_at: Optional[datetime] = None 
     using: Optional[bool] = None
     user_id: Optional[uuid.UUID] = None
+
+class RefreshTokenSchema(BaseModel):
+    refresh_token: str

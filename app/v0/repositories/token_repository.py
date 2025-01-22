@@ -14,3 +14,8 @@ class TokenRepository(Repository, ITokenRepository):
         builder: TokenBuilder = TokenBuilder()
     ) -> None:
         super().__init__(db_session=db_session, model=model, builder=builder)
+
+    async def get_token_by_encode(self, encode_refresh_token: bytes) -> RefreshToken:
+        return await self._get_result_by_condition([
+            (self.model.token, encode_refresh_token, TypeOperation.EQUAL)
+        ])

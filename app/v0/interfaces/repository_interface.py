@@ -6,6 +6,8 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.models.base import Base
+from core.models.enum.typecode import TypeCode
+from core.models.verification_codes import VerificationCode
 from ..dependencies.builders import QueryBuilder
 
 
@@ -45,6 +47,10 @@ class IRepository(ABC):
 class ITokenRepository(IRepository):
     ...
 
+    @abstractmethod
+    async def get_token_by_encode(self, encode_refresh_token: bytes) -> model_type:
+        ...
+
 class IUserRepository(IRepository):
     
     @abstractmethod
@@ -54,5 +60,5 @@ class IUserRepository(IRepository):
 class IVerCodeRepository(IRepository):
     
     @abstractmethod
-    async def get_by_user_id_and_code(self, user_id: uuid.UUID, code: str) -> model_type:
+    async def get_by_user_id_and_code(self, user_id: uuid.UUID, code: str, type_code: TypeCode) -> VerificationCode:
         ...
