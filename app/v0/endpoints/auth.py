@@ -19,7 +19,12 @@ from ..repositories.token_repository import TokenRepository
 from ..repositories.verificationcode_repository import VerCodeRepository
 from ..dependencies.password_hasher import PasswordHasher
 from ..dependencies.code_generator import CodeGenerator
-from ..dependencies.exceptions import CustomHTTPException, SMSError
+from ..dependencies.exceptions import (
+    CustomHTTPException, HTTP405Exception, HTTP404Exception, 
+    HTTP500Exception, HTTP403Exception, HTTP401Exception,
+    RepositoryException, HTTP400Exception
+)
+from ..dependencies.handle_exception import handle_exception
 from ..dependencies.jwt_token_creator import JWTTokenCreator
 from ..dependencies.sms_sender import SMSCSender
 from ..dependencies.encoder import Encoder, get_encoder
@@ -47,15 +52,8 @@ async def register(
         
         user = await user_manager_service.create(user_create=user_create)
         return await verification_service.send_code(user_id=user.id, phone=user.phone, type_code=TypeCode.ACCOUNT_CONFIRM)
-    except CustomHTTPException as e:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e)
-    except SMSError as e:
-        raise HTTPException(status_code=status.HTTP_405_METHOD_NOT_ALLOWED, detail=e)
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except Exception as e:
-        print(e)
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Internal Server Error")
+        handle_exception(e)
 
 @router.post('/login')
 async def login(
@@ -92,8 +90,8 @@ async def login(
             access_token=access_token,
             refresh_token=refresh_token
         )
-    except:
-        raise
+    except Exception as e:
+        handle_exception(e)
 
 @router.post("/logout")
 async def logout(
@@ -103,10 +101,10 @@ async def logout(
 ) -> dict[str, str]:
     try:
         encode_refresh_token = token_encode_service.encode_token(token=refresh_token.refresh_token)
-        await token_manager_service.set_token_incative(encode_refresh_token=encode_refresh_token)
+        await token_manager_service.set_token_inactive(encode_refresh_token=encode_refresh_token)
         return {"message": "Successfully logout"}
-    except:
-        raise
+    except Exception as e:
+        handle_exception(e)
 
 async def send_code_and_create_user(
     phone: str, 
@@ -117,16 +115,8 @@ async def send_code_and_create_user(
     try:
         user = await user_service.get_user_by_phone(phone)
         return await verification_service.send_code(user_id=user.id, phone=phone, type_code=type_code)
-    except CustomHTTPException as e:
-        raise HTTPException(
-            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
-            detail=str(e)
-        )
     except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
-            detail="Unable to send SMS. Please try again later."
-        )
+        handle_exception(e)
 
 @router.post("/send-sms")
 async def send_sms(
@@ -136,8 +126,8 @@ async def send_sms(
 ) -> dict[str, str]:
     try:
         return await send_code_and_create_user(phone=phone_schema.phone, user_service=user_service, verification_service=verification_service, type_code=TypeCode.ACCOUNT_CONFIRM)
-    except:
-        raise
+    except Exception as e:
+        handle_exception(e)
 
 @router.post("/verify-sms")
 async def verify_sms(
@@ -158,14 +148,11 @@ async def verify_sms(
                 detail="Incorrect code"
             )
 
-        await user_manager_service.set_account_status(user=user, account_status=AccountStatus.ACTIVE)
+        await user_manager_service.set_account_status(user_id=user.id, account_status=AccountStatus.ACTIVE)
         await ver_code_manager.update_used_status(id=ver_code.id, is_used=False)
         return {"message": "Success verification"}
-    except CustomHTTPException as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail=str(e)
-        )
+    except Exception as e:
+        handle_exception(e)
 
 @router.post("/forgot-password")
 async def forgot_password(
@@ -175,8 +162,8 @@ async def forgot_password(
 ):  
     try:
         return await send_code_and_create_user(phone=phone_schema.phone, user_service=user_service, verification_service=verification_service, type_code=TypeCode.PASSWORD_RESTORE)
-    except:
-        raise
+    except Exception as e:
+        handle_exception(e)
 
 @router.post("/reset-password")
 async def reset_password(
@@ -190,19 +177,19 @@ async def reset_password(
         code = recovery_password.code
 
         user = await user_manager_service.get_user_by_phone(phone=phone)
-        if not (ver_code := await verification_compare.get_ver_code(user_id=user.id, code=code, type_code=TypeCode.PASSWORD_RESTORE)):
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Incorrect code"
-            )
+        ver_code = await verification_compare.get_ver_code(user_id=user.id, code=code, type_code=TypeCode.PASSWORD_RESTORE)
+        success = await user_manager_service.change_password(user=user, recovery_password=recovery_password)
+        
         await ver_code_manager.update_used_status(id=ver_code.id, is_used=False)
-
-        return await user_manager_service.change_password(user=user, recovery_password=recovery_password)
-    except:
-        raise
+        return success
+    except Exception as e:
+        handle_exception(e)
 
 @router.get("/current-user")
 async def current_user(
     current_user: UserRead = Depends(get_current_user)
 ) -> UserRead:
-    return current_user
+    try:
+        return current_user
+    except Exception as e:
+        handle_exception(e)

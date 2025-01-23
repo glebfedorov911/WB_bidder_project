@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.models.user import User
 from ..interfaces.repository_interface import IUserRepository
-from ..dependencies.type_operation import TypeOperation
+from core.models.types.type_operation import TypeOperation
 from ..dependencies.builders import UserBuilder
 from .repository import Repository
 

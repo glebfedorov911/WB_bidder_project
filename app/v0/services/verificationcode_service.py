@@ -12,6 +12,11 @@ from ..repositories.verificationcode_repository import VerCodeRepository
 from core.settings import settings
 from core.models.enum.typecode import TypeCode
 from ..dependencies.exceptions import SMSError
+from ..dependencies.exceptions import (
+    CustomHTTPException, HTTP405Exception, HTTP404Exception, 
+    HTTP500Exception, HTTP403Exception, HTTP401Exception,
+    RepositoryException, HTTP400Exception
+)
 
 
 class SMSService:
@@ -22,8 +27,15 @@ class SMSService:
         self.sms_sender = sms_sender
 
     async def send_sms(self, phone: str, code: str) -> bool:
-        return await self.sms_sender.sms_send(phone=phone, code=code)
-    
+        try:
+            return await self.sms_sender.sms_send(phone=phone, code=code)
+        except CustomHTTPException as e:
+            settings.statberry_logger.get_loger().error(e)
+            raise HTTP400Exception(e)
+        except Exception as e:
+            settings.statberry_logger.get_loger().error(e)
+            raise HTTP500Exception("Internal Server Error")
+
 class VerificationCodeManagerService:
     def __init__(
         self,
@@ -32,13 +44,21 @@ class VerificationCodeManagerService:
         self.vc_repo = vc_repo
 
     async def create(self, data: VerCodeCreate):
-        return await self.vc_repo.create(data=data)
+        try:
+            return await self.vc_repo.create(data=data)
+        except RepositoryException as e:
+            settings.statberry_logger.get_loger().error(e)
+            raise HTTP404Exception(e)
 
     async def update_used_status(self, id: uuid.UUID, is_used: bool):
-        data = VerCodeUpdate(
-            is_used=is_used
-        )
-        return await self.vc_repo.update(id=id, data=data)
+        try:
+            data = VerCodeUpdate(
+                is_used=is_used
+            )
+            return await self.vc_repo.update(id=id, data=data)
+        except RepositoryException as e:
+            settings.statberry_logger.get_loger().error(e)
+            raise HTTP404Exception(e)
 
 
 class VerificationCodeCompare:
@@ -48,7 +68,11 @@ class VerificationCodeCompare:
         self.vc_repo = vc_repo
 
     async def get_ver_code(self, user_id: uuid.UUID, code: str, type_code: TypeCode) -> bool:
-        return await self.vc_repo.get_by_user_id_and_code(user_id=user_id, code=code, type_code=type_code)
+        try:
+            return await self.vc_repo.get_by_user_id_and_code(user_id=user_id, code=code, type_code=type_code)
+        except RepositoryException as e:
+            settings.statberry_logger.get_loger().error(e)
+            raise HTTP404Exception(e)
 
 class VerificationService:
     def __init__(self, generator: CodeGenerator, manager: VerificationCodeManagerService, sms: SMSService):
@@ -63,8 +87,9 @@ class VerificationService:
             ver_code = self.__create_ver_code_create_scheme(code=code, user_id=user_id, phone=phone, type_code=type_code)
             await self.manager.create(data=ver_code)
             return {"message": "Verification code send successfully"}
-        except SMSError as e:
-            raise e
+        except CustomHTTPException as e:
+            settings.statberry_logger.get_loger().error(e)
+            raise HTTP400Exception(e)
 
     def __create_ver_code_create_scheme(self, user_id: uuid.UUID, code: str, phone: str, type_code: str | None = None):
         ver_code = VerCodeCreate(code=code, user_id=user_id)

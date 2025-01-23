@@ -3,7 +3,7 @@ import httpx
 
 from core.settings import settings
 from .requestor import HttpxRequestor
-from .exceptions import SMSError
+from .exceptions import CustomHTTPException
 
 
 
@@ -24,7 +24,7 @@ class SMSCSender:
         "8": "Cannot send message",
         "9": "Cannot send a lot of sms in minute",
     }
-    UNKNOWN = "Unknown error"
+    UNKNOWN = "Internal Server Error"
 
     def __init__(self, smsc_login: str, smsc_psw: str, smsc_tg: str):
         self.httpx_request: HttpxRequestor = HttpxRequestor()
@@ -36,10 +36,11 @@ class SMSCSender:
         try:
             response = await self.__sms_send(phone=phone, code=code)
             return self.__check_status_responce(response=response)
-        except SMSError as e:
-            raise e
+        except CustomHTTPException as e:
+            settings.statberry_logger.get_loger().error(e)
+            raise CustomHTTPException("Unable to send sms. Please, try later")
         except Exception as e:
-            raise SMSError(f"Unknown error: {e}")
+            settings.statberry_logger.get_loger().error(e)
 
     async def __sms_send(self, phone: str, code: str) -> list:
         url = self.__url_creator(phone=phone, code=code)
@@ -61,8 +62,8 @@ class SMSCSender:
         type_response = response[self.TYPE_RESPONSE_POSITION]
         if type_response == self.ERROR:
             code_error = response[self.CODE_ERROR_POSITION]
-            raise SMSError(self.ERROR_CODE[code_error])
+            raise CustomHTTPException(self.ERROR_CODE[code_error])
         elif type_response == self.OK:
             return True
         else:
-            raise SMSError(self.UNKNOWN)
+            raise CustomHTTPException(self.UNKNOWN)

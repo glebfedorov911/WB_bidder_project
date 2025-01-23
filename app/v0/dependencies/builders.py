@@ -10,8 +10,7 @@ from core.models.token import RefreshToken
 from core.models.user import User
 from core.models.verification_codes import VerificationCode
 from core.models.base import Base
-
-from .type_operation import TypeOperation
+from core.models.types.type_operation import TypeOperation
 
 
 schema_type = TypeVar("S", bound=BaseModel) 

@@ -13,6 +13,10 @@ from ..schemas.token_schema import RefreshTokenCreate, RefreshTokenUpdate
 from ..dependencies.jwt_token_creator import JWTTokenCreator
 from ..dependencies.encoder import Encoder, get_encoder
 from ..repositories.token_repository import TokenRepository
+from ..dependencies.exceptions import (
+    CustomHTTPException, HTTP405Exception, HTTP404Exception, 
+    HTTP500Exception, HTTP403Exception, HTTP401Exception, RepositoryException
+)
 from core.models.token import RefreshToken
 from core.models.databasehelper import database_helper
 from core.settings import settings
@@ -21,6 +25,10 @@ from core.settings import settings
 class TokenMixin:
     def __init__(self, token_creator: ITokenCreator):
         self.token_creator = token_creator
+
+class TokenEncoderMixin:
+    def __init__(self, encoder: Encoder):
+        self.encoder = encoder
 
 class TokenCreatorService(TokenMixin):
     def __init__(
@@ -66,14 +74,10 @@ class RefreshTokenService(TokenCreatorService):
             token_creator=token_creator
         )
 
-class TokenVerifyService(TokenMixin):
+class TokenVerifyService(TokenMixin, TokenEncoderMixin):
     def __init__(self, token_creator: ITokenCreator, encoder: Encoder):
-        super().__init__(token_creator=token_creator) 
-        self.encoder = encoder
-        self.except_bad_auth = HTTPException(
-            status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
-            detail="Bad auth"
-        )
+        TokenMixin.__init__(self=self, token_creator=token_creator)
+        TokenEncoderMixin.__init__(self=self, encoder=encoder) 
 
     def verify_token(self, token: str, request: Request):
         try:
@@ -82,11 +86,12 @@ class TokenVerifyService(TokenMixin):
             
             return payload
         except Exception as e:
-            print(e)
+            settings.statberry_logger.get_loger().error(e)
+            raise HTTP403Exception("Invalid token")
 
     def __check_user_agent(self, user_agent: str, payload: dict):
         if self.encoder.encode(user_agent) != payload.get('user_agent'):
-            raise self.except_bad_auth
+            raise HTTP405Exception("Bad Auth")
 
     def __decode_token(self, token: str) -> dict:
         return self.token_creator.decode(token)
@@ -143,31 +148,31 @@ class TokenManagerService:
     def __init__(self, token_repository: ITokenRepository):
         self.token_repository = token_repository        
 
-    async def set_token_incative(self, encode_refresh_token: bytes):
+    async def set_token_inactive(self, encode_refresh_token: bytes):
         try:
             token: RefreshToken = await self.__get_token_by_encode(encode_refresh_token=encode_refresh_token)
-            if not token:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Token not found"
-                )
             data = RefreshTokenUpdate(
                 using=False
             )
             return await self.token_repository.update(id=token.id, data=data)
-        except:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Token already not active"
-            )
+        except RepositoryException as e:
+            settings.statberry_logger.get_loger().error(e)
+            raise HTTP404Exception("Token not found")
+        except Exception as e:
+            settings.statberry_logger.get_loger().error(e)
+            raise HTTP405Exception("Token already not active")
 
     async def __get_token_by_encode(self, encode_refresh_token: bytes):
-        return await self.token_repository.get_token_by_encode(encode_refresh_token=encode_refresh_token)
+        try:
+            return await self.token_repository.get_token_by_encode(encode_refresh_token=encode_refresh_token)
+        except Exception as e:
+            settings.statberry_logger.get_loger().error(e)
+            raise HTTP404Exception("Token not found")
 
-class TokenEncodeService:
+class TokenEncodeService(TokenEncoderMixin):
 
     def __init__(self, encoder: Encoder):
-        self.encoder = encoder
+        super().__init__(encoder=encoder)
 
     def encode_token(self, token: str):
         return self.encoder.encode(data=token)

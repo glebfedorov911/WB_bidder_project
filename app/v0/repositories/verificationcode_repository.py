@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.models.verification_codes import VerificationCode
 from core.models.enum.typecode import TypeCode
-from ..dependencies.type_operation import TypeOperation
+from core.models.types.type_operation import TypeOperation
 from ..interfaces.repository_interface import IVerCodeRepository, model_type
 from ..dependencies.builders import VerCodeBuilder
 from .repository import Repository
