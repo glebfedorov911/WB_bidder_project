@@ -25,3 +25,14 @@ def handle_exception(e: Exception):
     if error_code == status.HTTP_500_INTERNAL_SERVER_ERROR:
         message = "Internal Server Error"
     raise HTTPException(status_code=error_code, detail=message)
+
+def handle_requestor_exception(e: Exception):
+    EXCEPTION_MAP = {
+        httpx.TimeoutException: "Request timeout",
+        httpx.HTTPStatusError: f"Http code: {e.response.status_code}",
+        httpx.Request: f"Error while request sending",
+    }
+
+    settings.statberry_logger.get_loger().error(e)
+    error_message = EXCEPTION_MAP.get(type(e), "Internal Server Error")
+    raise CustomHTTPException(error_message)

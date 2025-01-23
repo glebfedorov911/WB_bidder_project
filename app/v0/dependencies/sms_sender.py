@@ -35,6 +35,7 @@ class SMSCSender:
     async def sms_send(self, phone: str, code: str) -> bool:
         try:
             response = await self.__sms_send(phone=phone, code=code)
+            print(response)
             return self.__check_status_responce(response=response)
         except CustomHTTPException as e:
             settings.statberry_logger.get_loger().error(e)
