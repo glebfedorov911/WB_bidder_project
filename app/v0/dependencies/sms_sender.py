@@ -41,6 +41,7 @@ class SMSCSender:
             raise CustomHTTPException("Unable to send sms. Please, try later")
         except Exception as e:
             settings.statberry_logger.get_loger().error(e)
+            raise CustomHTTPException("Internal Server Error")
 
     async def __sms_send(self, phone: str, code: str) -> list:
         url = self.__url_creator(phone=phone, code=code)
