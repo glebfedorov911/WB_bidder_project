@@ -36,6 +36,24 @@ from ..schemas.verificationcode_schema import PhoneSchema, VerificationSMS, Reco
 
 router = APIRouter(tags=["Auth"], prefix="/auth")
 
+def create_data(encoder: Encoder, user_id, user_agent):
+    return {
+        "sub": str(user_id),
+        "user_agent": encoder.encode(user_agent)
+    }
+
+async def send_code_and_create_user(
+    phone: str, 
+    user_service: UserQueryService,
+    verification_service: VerificationService,
+    type_code: TypeCode
+) -> dict:
+    try:
+        user = await user_service.get_user_by_phone(phone)
+        return await verification_service.send_code(user_id=user.id, phone=phone, type_code=type_code)
+    except Exception as e:
+        handle_exception(e)
+
 @router.post("/register", response_model=None)
 async def register(
     user_create: UserCreate,
@@ -54,12 +72,6 @@ async def register(
         return await verification_service.send_code(user_id=user.id, phone=user.phone, type_code=TypeCode.ACCOUNT_CONFIRM)
     except Exception as e:
         handle_exception(e)
-
-def create_data(encoder: Encoder, user_id, user_agent):
-    return {
-        "sub": str(user_id),
-        "user_agent": encoder.encode(user_agent)
-    }
 
 @router.post('/login')
 async def login(
@@ -135,18 +147,6 @@ async def logout(
         encode_refresh_token = token_encode_service.encode_token(token=refresh_token.refresh_token)
         await token_manager_service.set_token_inactive(encode_refresh_token=encode_refresh_token)
         return {"message": "Successfully logout"}
-    except Exception as e:
-        handle_exception(e)
-
-async def send_code_and_create_user(
-    phone: str, 
-    user_service: UserQueryService,
-    verification_service: VerificationService,
-    type_code: TypeCode
-) -> dict:
-    try:
-        user = await user_service.get_user_by_phone(phone)
-        return await verification_service.send_code(user_id=user.id, phone=phone, type_code=type_code)
     except Exception as e:
         handle_exception(e)
 
