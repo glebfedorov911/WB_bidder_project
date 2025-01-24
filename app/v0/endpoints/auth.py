@@ -81,6 +81,7 @@ async def login(
     token_fabric: TokenFabricService = Depends(get_token_fabric_service),
     token_repository: TokenRepository = Depends(get_token_repository),
     token_encode_service: TokenEncodeService = Depends(get_token_encode_service),
+    token_manager_service: TokenManagerService = Depends(get_token_manager_service),
     encoder: Encoder = Depends(get_encoder),
 ) -> Token:
     try:
@@ -99,7 +100,7 @@ async def login(
             expires_at=expire_refresh,
             user_id=user.id
         )
-        await token_repository.create(data=token_schema)
+        await token_manager_service.create_token(token_schema=token_schema)
         
         return Token(
             access_token=access_token,
