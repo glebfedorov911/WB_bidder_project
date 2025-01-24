@@ -150,7 +150,7 @@ class TokenManagerService:
 
     async def set_token_inactive(self, encode_refresh_token: bytes):
         try:
-            token: RefreshToken = await self.__get_token_by_encode(encode_refresh_token=encode_refresh_token)
+            token: RefreshToken = await self.get_token_by_encode(encode_refresh_token=encode_refresh_token)
             data = RefreshTokenUpdate(
                 using=False
             )
@@ -162,7 +162,7 @@ class TokenManagerService:
             settings.statberry_logger.get_loger().error(e)
             raise HTTP405Exception("Token already not active")
 
-    async def __get_token_by_encode(self, encode_refresh_token: bytes):
+    async def get_token_by_encode(self, encode_refresh_token: bytes) -> RefreshToken:
         try:
             return await self.token_repository.get_token_by_encode(encode_refresh_token=encode_refresh_token)
         except Exception as e:

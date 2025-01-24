@@ -55,6 +55,12 @@ async def register(
     except Exception as e:
         handle_exception(e)
 
+def create_data(encoder: Encoder, user_id, user_agent):
+    return {
+        "sub": str(user_id),
+        "user_agent": encoder.encode(user_agent)
+    }
+
 @router.post('/login')
 async def login(
     request: Request,
@@ -71,13 +77,10 @@ async def login(
         user = await user_service.authenticate(phone=phone, password=password)
 
         user_agent = request.headers.get("user-agent")
-        data = {
-            "sub": str(user.id), 
-            "user_agent": encoder.encode(user_agent)
-        }
+        data = create_data(encoder=encoder, user_id=user.id, user_agent=user_agent)
         
         token_service = TokenService(token_fabric=token_fabric, expire_access_time=settings.auth.ACCESS_TOKEN_EXPIRE_SECONDS, expire_refresh_time=settings.auth.REFRESH_TOKEN_EXPIRE_SECONDS, data=data)
-        access_token, expire_access, refresh_token, expire_refresh = token_service.create_tokens()
+        access_token, _, refresh_token, expire_refresh = token_service.create_tokens()
 
         token_schema = RefreshTokenCreate(
             token=token_encode_service.encode_token(token=refresh_token),
@@ -92,6 +95,35 @@ async def login(
         )
     except Exception as e:
         handle_exception(e)
+
+@router.post("/refresh")
+async def refresh(
+    request: Request,
+    refresh_token_schema: RefreshTokenSchema,
+    token_encode_service: TokenEncodeService = Depends(get_token_encode_service),
+    token_repository: TokenRepository = Depends(get_token_repository),
+    token_manager_service: TokenManagerService = Depends(get_token_manager_service),
+    token_fabric: TokenFabricService = Depends(get_token_fabric_service),
+    encoder: Encoder = Depends(get_encoder),
+):
+    try:
+        encode_refresh_token = token_encode_service.encode_token(token=refresh_token_schema.refresh_token)
+        token = await token_manager_service.get_token_by_encode(encode_refresh_token=encode_refresh_token)
+        if token.expires_at < datetime.utcnow():
+            await token_manager_service.set_token_inactive(encode_refresh_token=encode_refresh_token)
+            raise HTTP405Exception("Token is not active")
+
+        user_agent = request.headers.get("user-agent")
+        data = create_data(encoder=encoder, user_id=token.user_id, user_agent=user_agent)
+        token_service = TokenService(token_fabric=token_fabric, expire_access_time=settings.auth.ACCESS_TOKEN_EXPIRE_SECONDS, expire_refresh_time=settings.auth.REFRESH_TOKEN_EXPIRE_SECONDS, data=data)
+        access_token, expire_access, _, _ = token_service.create_tokens()
+        
+        return Token(
+            access_token=access_token,
+            refresh_token=refresh_token_schema.refresh_token
+        )
+    except Exception as e:
+        raise handle_exception(e)
 
 @router.post("/logout")
 async def logout(
