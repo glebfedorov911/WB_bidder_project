@@ -2,7 +2,7 @@ import asyncio
 import httpx
 
 from core.settings import settings
-from .requestor import HttpxRequestor
+from .http_client import HttpxHttpClient
 from .exceptions import CustomHTTPException
 
 
@@ -27,7 +27,7 @@ class SMSCSender:
     UNKNOWN = "Internal Server Error"
 
     def __init__(self, smsc_login: str, smsc_psw: str, smsc_tg: str):
-        self.httpx_request: HttpxRequestor = HttpxRequestor()
+        self.httpx_request: HttpxHttpClient = HttpxHttpClient()
         self.smsc_login = smsc_login
         self.smsc_psw = smsc_psw
         self.smsc_tg = smsc_tg

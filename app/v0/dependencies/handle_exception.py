@@ -26,7 +26,7 @@ def handle_exception(e: Exception):
         message = "Internal Server Error"
     raise HTTPException(status_code=error_code, detail=message)
 
-def handle_requestor_exception(e: Exception):
+def handle_http_client_exception(e: Exception):
     EXCEPTION_MAP = {
         httpx.TimeoutException: "Request timeout",
         httpx.HTTPStatusError: f"Http code: {e.response.status_code}",

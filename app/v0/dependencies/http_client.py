@@ -2,11 +2,11 @@ import asyncio
 import httpx
 
 from .exceptions import CustomHTTPException
-from .handle_exception import handle_requestor_exception
+from .handle_exception import handle_http_client_exception
 from core.settings import settings
 
 
-class HttpxRequestor:
+class HttpxHttpClient:
 
     @staticmethod
     async def send(url: str) -> list:
@@ -15,4 +15,4 @@ class HttpxRequestor:
                 response = await client.get(url)
                 return response.text.split(' ')
         except Exception as e:
-            handle_requestor_exception(e)
+            handle_http_client_exception(e)
