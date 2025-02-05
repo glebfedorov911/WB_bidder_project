@@ -27,8 +27,13 @@ class CalculatorCPM(Calculator):
     def _check_valid_cpm(self, part_max_cpm: int) -> bool:
         return part_max_cpm > self.min_cpm
 
+class ManagerCPM:
+
+    def increase_cpm(self, cpm: int, step: int) -> int:
+        return cpm + step
+
 class Bidder:
-    def __init__(self, bidder_data: BidderData, cpm_change: CPMChangeSchema, calculator: Calculator):
+    def __init__(self, bidder_data: BidderData, cpm_change: CPMChangeSchema, cpm_manager: ManagerCPM, calculator: Calculator):
         super().__init__()
         
         self.max_cpm_campaign = bidder_data.max_cpm_campaign
@@ -44,6 +49,7 @@ class Bidder:
         self.instrument = cpm_change.instrument
 
         self.calculator = calculator
+        self.cpm_manager = cpm_manager
 
         self.start_cpm = self._get_start_cpm_campaign()
         
@@ -54,9 +60,5 @@ class Bidder:
 
     def _get_start_cpm_campaign(self) -> int:
         return self.calculator.calculate_start_cpm()
-
-    def up_cpm(self) -> None:
-        self.cpm += self.step
-
 
 #TODO: Написать работу с вб, ТЕСТЫ!!!
