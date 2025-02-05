@@ -53,7 +53,6 @@ class BidderData(BaseModel):
             return cpm_default
         return value
     
-
 class CPMChangeSchema(BaseModel):
     advertId: int
     type: TypeCampaign
