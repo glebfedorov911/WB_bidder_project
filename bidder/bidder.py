@@ -10,7 +10,7 @@ from abc import ABC, abstractmethod
 class Calculator(ABC):
 
     @abstractmethod
-    def calculate_start_cpm(self):
+    def calculate_start_cpm(self, min_cpm: int, max_cpm: int) -> int:
         ...
 
 class CalculatorCPM(Calculator):
