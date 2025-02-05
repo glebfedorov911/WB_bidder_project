@@ -59,4 +59,4 @@ class Bidder:
         self.cpm += self.step
 
 
-#TODO: Написать работу с вб
+#TODO: Написать работу с вб, ТЕСТЫ!!!
