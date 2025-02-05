@@ -1,6 +1,7 @@
 from pydantic import BaseModel, field_validator, ValidationError
 
 from enum import Enum
+from typing import Self
 
 from .exception import *
 from .settings import settings
@@ -37,8 +38,7 @@ class BidderData(BaseModel):
     type_work_bidder: ModeBidder = ModeBidder.DEFAULT
     step: int = settings.cpm_var.step_cpm
 
-    @field_validator("min_cpm_campaign", mode="before")
-    @field_validator("max_cpm_campaign", mode="before")
+    @field_validator("min_cpm_campaign", "max_cpm_campaign", mode="before")
     @classmethod
     def check_valid_campaign(cls, value: int) -> int:
         cpm_default = settings.cpm_var.min_cpm
@@ -47,6 +47,11 @@ class BidderData(BaseModel):
             return cpm_default
         return value
     
+    @field_validator(mode="after")
+    def check_max_relative_min(self) -> Self:
+        if self.max_cpm_campaign < self.min_cpm_campaign:
+            raise ValueError("Min CPM cannot be greather then Max CPM")
+        return self
 
 class CPMChangeSchema(BaseModel):
     advertId: int
