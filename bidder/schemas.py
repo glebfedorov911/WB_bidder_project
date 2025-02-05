@@ -38,12 +38,13 @@ class BidderData(BaseModel):
     step: int = settings.cpm_var.step_cpm
 
     @field_validator("min_cpm_campaign", mode="before")
+    @field_validator("max_cpm_campaign", mode="before")
     @classmethod
     def check_valid_campaign(cls, value: int) -> int:
-        min_cpm_default = settings.cpm_var.min_cpm
+        cpm_default = settings.cpm_var.min_cpm
 
-        if value < min_cpm_default:
-            return min_cpm_default
+        if value < cpm_default:
+            return cpm_default
         return value
     
 
