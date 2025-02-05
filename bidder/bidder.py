@@ -7,13 +7,13 @@ import httpx
 from abc import ABC, abstractmethod
 
 
-class Calculator(ABC):
+class CalculatorCPM(ABC):
 
     @abstractmethod
     def calculate_start_cpm(self) -> int:
         ...
 
-class CalculatorCPM(Calculator):
+class StandardCalculatorCPM(CalculatorCPM):
 
     def __init__(self, min_cpm: int, max_cpm: int):
         self.min_cpm = min_cpm
@@ -33,7 +33,7 @@ class ManagerCPM:
         return cpm + step
 
 class Bidder:
-    def __init__(self, bidder_data: BidderData, cpm_change: CPMChangeSchema, cpm_manager: ManagerCPM, calculator: Calculator):
+    def __init__(self, bidder_data: BidderData, cpm_change: CPMChangeSchema, cpm_manager: ManagerCPM, calculator: CalculatorCPM):
         super().__init__()
         
         self.bidder_data = bidder_data
