@@ -34,7 +34,7 @@ class Bidder:
         self.calculator = calculator
 
         self.type = self._get_wb_code_for_type(type_campaign=cpm_change.type)
-        self.min_cpm_campaign = self._get_min_cpm(
+        self.min_cpm_campaign = self._get_min_cpm_campaign(
             min_cpm_campaign=bidder_data.min_cpm_campaign,
             max_cpm_campaign=bidder_data.max_cpm_campaign,
         )
