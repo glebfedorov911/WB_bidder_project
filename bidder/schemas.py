@@ -41,7 +41,7 @@ class BidderData(BaseModel):
     @field_validator(mode="after")
     def check_max_relative_min(self) -> Self:
         if self.max_cpm_campaign < self.min_cpm_campaign:
-            raise ValueError("Min CPM cannot be greather then Max CPM")
+            raise ValueError(MIN_GREATHER_THEN_MAX)
         return self
 
     @field_validator("min_cpm_campaign", "max_cpm_campaign", mode="before")
