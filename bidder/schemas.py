@@ -3,6 +3,7 @@ from pydantic import BaseModel, field_validator, ValidationError
 from enum import Enum
 
 from .exception import *
+from .settings import settings
 
 
 class ModeBidder(Enum):
@@ -30,11 +31,21 @@ class TypeCampaign(Enum):
         return status
 
 class BidderData(BaseModel):
-    good_articul: str
-    max_sum_good: int
-    min_sum_good: int
+    max_cpm_campaign: int
+    min_cpm_campaign: int = settings.cpm_var.min_cpm
     wish_place_in_top: int
-    type_work_bidder: ModeBidder
+    type_work_bidder: ModeBidder = ModeBidder.DEFAULT
+    step: int = settings.cpm_var.step_cpm
+
+    @field_validator("min_cpm_campaign", mode="before")
+    @classmethod
+    def check_valid_campaign(cls, value: int) -> int:
+        min_cpm_default = settings.cpm_var.min_cpm
+
+        if value < min_cpm_default:
+            return min_cpm_default
+        return value
+    
 
 class CPMChangeSchema(BaseModel):
     advertId: int
