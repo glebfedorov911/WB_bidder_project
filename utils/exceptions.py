@@ -1,0 +1,14 @@
+
+
+INVALID_DATA_FOR_TYPE_CAMPAIGN = "Value: {value}. Invalid data for Type Campaign"
+INVALID_CAMPAIGN_TYPE_WB_CODE_MISSING = "Invalid campaign type: wb_code is missing"
+MIN_GREATHER_THEN_MAX = "Min CPM cannot be greather then Max CPM"
+INVALID_REQUEST = "Invalid request"
+TIME_LIMIT_IS_REACHED = "Time limit is reached"
+STATUS_ERROR = "Answer: {status_code}"
+INTERNAL_SERVER_ERROR = "Internal Server Error"
+INVALID_DATA_FORMAT = "Invalid data format"
+INVALID_YEAR_FORMAT = "Invalid year format"
+INVALID_MONTH_FORMAT = "Invalid month format"
+INVALID_DAY_FORMAT = "Invalid day format"
+INVALID_LIMIT_VALUE = "Invalid limit value"

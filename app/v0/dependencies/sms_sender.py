@@ -2,7 +2,7 @@ import asyncio
 import httpx
 
 from core.settings import settings
-from .http_client import HttpxHttpClient
+from utils.http_client import HttpxHttpClient
 from .exceptions import CustomHTTPException
 
 
@@ -46,7 +46,7 @@ class SMSCSender:
 
     async def __sms_send(self, phone: str, code: str) -> list:
         url = self.__url_creator(phone=phone, code=code)
-        return await self.httpx_request.send(url=url)
+        return await self.httpx_request.send_request(method="get", url=url)
 
     def __url_creator(self, phone: str, code: str):
         params = {
