@@ -19,7 +19,6 @@ def handle_exception(e: Exception):
         HTTP500Exception: status.HTTP_500_INTERNAL_SERVER_ERROR,
     }
 
-    settings.statberry_logger.get_loger().error(e)
     error_code = EXCEPTION_MAP.get(type(e), status.HTTP_500_INTERNAL_SERVER_ERROR)
     message = str(e)
     if error_code == status.HTTP_500_INTERNAL_SERVER_ERROR:

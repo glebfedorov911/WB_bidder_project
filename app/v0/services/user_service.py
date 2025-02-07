@@ -128,7 +128,6 @@ class UserAuthService:
             settings.statberry_logger.get_loger().error(e)
             raise HTTP400Exception('Invalid phone number')
         if not self.__valid_password(password=password, hash_password=user.password):
-            settings.statberry_logger.get_loger().error(e)
             raise HTTP400Exception('Invalid password')
         return user
 

@@ -134,7 +134,7 @@ async def refresh(
             refresh_token=refresh_token_schema.refresh_token
         )
     except Exception as e:
-        raise handle_exception(e)
+        handle_exception(e)
 
 @router.post("/logout")
 async def logout(
