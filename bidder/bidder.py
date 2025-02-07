@@ -67,7 +67,7 @@ class WildberriesBidderWorkerMixin:
     def _get_data_for_request(self, data_to_request: BaseModel) -> dict:
         return data_to_request.model_dump()
     
-    def _send_request_and_get_json_from_response(self, method: str, data_to_request: dict) -> dict:
+    async def _send_request_and_get_json_from_response(self, method: str, data_to_request: dict) -> dict:
         response = await self.http_client.send_request(
             method=method,
             url=self.url,
@@ -86,16 +86,16 @@ class WildberriesBidderCPMWorker(WildberriesBidderWorkerMixin):
     async def change_cpm(self, change_cpm: CPMChangeSchema) -> dict:
         change_cpm_for_request = self._get_data_for_request(change_cpm=change_cpm)
 
-        return self._send_request_and_get_json_from_response(method="post", change_cpm_for_request=change_cpm_for_request)
+        return await self._send_request_and_get_json_from_response(method="post", change_cpm_for_request=change_cpm_for_request)
 
 class WildberriesBidderStatsWorker(WildberriesBidderWorkerMixin):
     def __init__(self, url: str, http_client: BaseHttpClient):
         super().__init__(url=url, http_client=http_client)
 
-    def get_current_position_in_top(self, current_position_form: CurrentPositionSchema):
+    async def get_current_position_in_top(self, current_position_form: CurrentPositionSchema):
         current_position_form_for_request = self._get_data_for_request(data_to_request=current_position_form)
         
-        return self._send_request_and_get_json_from_response(method="post", data_to_request=current_position_form_for_request)
+        return await self._send_request_and_get_json_from_response(method="post", data_to_request=current_position_form_for_request)
 
 class Bidder:
     
