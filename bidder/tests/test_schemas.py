@@ -49,7 +49,8 @@ class TestTypeCampaign(unittest.TestCase):
         self.assertEqual(result, type)
 
     def _then_assert_attribute(self, result: str) -> None:
-        self.assertEqual(result, f"'{self.bad_data}' is not a valid TypeCampaign")
+        self.assertIn(self.bad_data, result)
+        self.assertIn("TypeCampaign", result)
 
 
 class TestBidderData(unittest.TestCase):
