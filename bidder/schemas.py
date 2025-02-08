@@ -76,35 +76,24 @@ class PeriodTime(BaseModel):
     end: datetime
 
     @field_validator("start", "end", mode="before")
-    def check_valid_data(self, value):
+    @classmethod
+    def check_valid_data(cls, value):
         splited_date = str(value).split("-")
         year, month, day = list(map(str, splited_date))
         
-        if self._check_valid_data_format(date=splited_date):
+        if len(splited_date) < 3:
             raise ValueError(INVALID_DATA_FORMAT)
         
-        if self._check_valid_year_format(year=year):
+        if 4 <= len(year) < 5:
             raise ValueError(INVALID_YEAR_FORMAT)
         
-        if self._check_valid_month_format(month=month):
+        if 2 <= len(month) < 3:
             raise ValueError(INVALID_MONTH_FORMAT)
         
-        if self._check_valid_day_format(day=day):
+        if 2 <= len(day) < 3:
             raise ValueError(INVALID_DAY_FORMAT)
 
         return datetime(value).strftime("%Y-%m-%d")
-
-    def _check_valid_data_format(self, date: str):
-        return len(split_data) < 3
-        
-    def _check_valid_year_format(self, year: str):
-        return 4 <= len(year) < 5
-
-    def _check_valid_month_format(self, month):
-        return 2 <= len(month) < 3
-
-    def _check_valid_day_format(self, day):
-        return 2 <= len(day) < 3
 
 class OrderBy(BaseModel):
     field: str = "avgPosition"
