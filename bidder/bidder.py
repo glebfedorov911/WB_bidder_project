@@ -126,6 +126,3 @@ class MomentumBidder(Bidder):
 
 class NeuroBidder(Bidder):
     ...
-
-#TODO: ТЕСТЫ!!!
-#TODO: ПЕРЕДАВАТЬ РЕЖИМ В ФАБРИКУ И ТАМ ЧЕКАТЬ КАКОЙ РЕЖИМ РАБОТЫ
