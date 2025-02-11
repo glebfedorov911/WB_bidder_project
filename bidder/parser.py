@@ -144,11 +144,15 @@ async def parse_plugin_data(url: str, user_data_dir: str, plugin_path: str, logi
                 url = urllib.parse.unquote(current_url)
                 data_to_save.append((from_value, price, url, marks, count_marks, fbo, num_of_the_rating))
 
-        await playwright_parser.wait_selector(page=page, selector=".cpm-card-widget.eggheads-bootstrap")
-        data_to_save = []
-        await collect_data(page=page, data_to_save=data_to_save, current_url=url)
+        try:
+            await playwright_parser.wait_selector(page=page, selector=".cpm-card-widget.eggheads-bootstrap")
+        except:
+            print("Недоступно в плагине, не можем парсить")
+        else:
+            data_to_save = []
+            await collect_data(page=page, data_to_save=data_to_save, current_url=url)
 
-        print(data_to_save)
+            print(data_to_save)
 
         print("Проверка, финал")
         os.rmdir(user_data_dir)
@@ -160,7 +164,7 @@ if __name__ == "__main__":
     main(
 # https://www.wildberries.ru/catalog/0/search.aspx?search=комплект%20сигнализации
         url="https://www.wildberries.ru/catalog/0/search.aspx?search=%D0%BA%D0%B0%D0%BC%D0%B5%D1%80%D0%B0%20%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE%D0%BD%D0%B0%D0%B1%D0%BB%D1%8E%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F",
-        user_data_dir="test12345",
+        user_data_dir="dsadsdads",
         plugin_path=r"C:\Users\User\AppData\Local\Google\Chrome\User Data\Default\Extensions\eabmbhjdihhkdkkmadkeoggelbafdcdd\2.15.27_0",
         login="ip-kalugina-olga-viktorovna@eggheads.solutions",
         password="JVD4Revp"
