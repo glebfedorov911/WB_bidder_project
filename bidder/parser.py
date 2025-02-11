@@ -152,7 +152,7 @@ async def parse_plugin_data(url: str, user_data_dir: str, plugin_path: str, logi
             data_to_save = []
             await collect_data(page=page, data_to_save=data_to_save, current_url=url)
 
-            print(data_to_save)
+            print(data_to_save) #TODO: ДОБАВИТЬ БД ДЛЯ НЕЙРОНКИ!!!! И НАСТРОИТЬ НЕЙРОНКУ
 
         print("Проверка, финал")
         os.rmdir(user_data_dir)
