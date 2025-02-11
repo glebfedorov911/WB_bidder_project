@@ -122,14 +122,14 @@ class TestBidderData(unittest.TestCase):
         self._then_assert(max_cpm, self.default_cpm)
         self._then_assert(min_cpm, self.default_cpm)
 
-    def test_bad_type_work_bidder(self):
-        data = self._given_data(
-            mn_cpm=self.min_cpm_campaign_good,
-            mx_cpm=self.max_cpm_campaign_good,
-            type_work=self.bad_type_work_bidder
-        )
+    # def test_bad_type_work_bidder(self):
+    #     data = self._given_data(
+    #         mn_cpm=self.min_cpm_campaign_good,
+    #         mx_cpm=self.max_cpm_campaign_good,
+    #         type_work=self.bad_type_work_bidder
+    #     )
 
-        
+    #TODO: ПРОТЕСТИТЬ ЕЩЕ ОСАТЛЬНЫЕ КЛАССЫ И bad_type_work_bidder
 
     def _given_data(self, mx_cpm: int, mn_cpm: int, type_work: str) -> BidderData:
         return BidderData(
