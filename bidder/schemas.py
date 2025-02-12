@@ -100,7 +100,7 @@ class OrderBy(BaseModel):
     field: str = "avgPosition"
     mode: str = "asc"
 
-class CurrentPositionSchema:
+class CurrentPositionSchema(BaseModel):
     currentPeriod: PeriodTime
     pastPeriod: PeriodTime
     nmIds: list
@@ -114,3 +114,14 @@ class CurrentPositionSchema:
         if 0 < value <= 30:
             return value
         raise ValueError(INVALID_LIMIT_VALUE)
+
+class AuthPluginSchema(BaseModel):
+    login: str
+    password: str
+
+class AuthPluginSelectors(BaseModel):
+    login_button: str = ".button-link.qa-product-widget-button-go-to-analytics"
+    login_field_auth: str = ".authorization-input"
+    password_field_auth: str = ".authorization-input.qa-password"
+    auth_button: str = ".btn.btn-md.btn-secondary.authorization-button.qa-button-login"
+    good_auth: str = "#mmodalpublic___BV_modal_title_"

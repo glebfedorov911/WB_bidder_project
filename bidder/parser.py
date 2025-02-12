@@ -6,6 +6,10 @@ import asyncio
 import os
 import urllib
 
+from .schemas import AuthPluginSchema, AuthPluginSelectors
+from .custom_exceptions import AlreadyAuthenticatedException
+from utils.exceptions import ALREADY_AUTH_PLUGIN, TIMEOUT
+
 
 class Parser(ABC):
 
@@ -18,10 +22,8 @@ class Parser(ABC):
         ...
 
     @abstractmethod
-    async def get_element_by_selector(self, selector: str, index: int | None = None) -> Locator:
+    async def get_element_by_selector(self, page: Page, selector: str, index: int | None = None) -> Locator:
         ...
-
-class IPlaywrightParser(Parser):
 
     @abstractmethod
     async def get_options(self, user_data_dir: str) -> dict:
@@ -47,7 +49,7 @@ class IPlaywrightParser(Parser):
     async def wait_selector(self, page: Page, selector: str) -> bool:
         ...
 
-class PlaywrightParser(IPlaywrightParser):
+class PlaywrightParser(Parser):
     TIMEOUT = 10_000
 
     def __init__(self, path_to_plugin: str):
@@ -85,38 +87,137 @@ class PlaywrightParser(IPlaywrightParser):
     async def get_element_by_selector(self, page: Page, selector: str, index: int | None = None) -> Locator:
         await self.wait_selector(page=page, selector=selector)
         elements = await page.query_selector_all(selector)
-        if index is not None:
-            return elements[index]
-        return elements
+        return self._get_with_index(elements=elements, index=index)
 
-    async def wait_selector(self, page: Page, selector: str) -> bool:
+    def _get_with_index(self, elements: list[Locator], index: int | None = None):
+        return elements[index] if index is not None else elements
+
+    async def wait_selector(self, page: Page, selector: str) -> None:
         try:
             await page.wait_for_selector(selector, timeout=self.TIMEOUT)
-            return True
         except:
-            raise TimeoutError("Timeout waiting")
+            raise TimeoutError(TIMEOUT)
+    
+class PluginAuth:
+    def __init__(self, page: Page, parser: Parser, auth_data: AuthPluginSchema):
+        self.page = page
+        self.parser = parser
+        self.login = auth_data.login
+        self.password = auth_data.password
 
-async def login_plugin(url: str, page: Page, playwright_parser: PlaywrightParser, login: str, password: str) -> None:
-    tag_to_redirect_login_page = await playwright_parser.get_element_by_selector(page=page, selector=".button-link.qa-product-widget-button-go-to-analytics", index=0)
-    href_to_login_page = await playwright_parser.get_attribute(tag=tag_to_redirect_login_page, tag_name="href")
-    if "login" in href_to_login_page:
-        await playwright_parser.goto(page=page, url=href_to_login_page)
+        self.selectors = AuthPluginSelectors()
 
-        login_tag = await playwright_parser.get_element_by_selector(page=page, selector=".authorization-input", index=0)
-        password_tag = await playwright_parser.get_element_by_selector(page=page, selector=".authorization-input.qa-password", index=0)
+    async def auth_in_plugin(self, goods_wb_url: str) -> None:
+        try:
+            login_link = await self._get_link_redirect_to_page_auth_in_plugin()
+        except AlreadyAuthenticatedException:
+            print("Пользователь уже авторизован")
+            return
 
-        await playwright_parser.fill(element=login_tag, value_to_fill=login)
-        await playwright_parser.fill(element=password_tag, value_to_fill=password)
+        await self._auth(url_to_login=login_link, url_to_back=goods_wb_url)
 
-        button_to_auth = await playwright_parser.get_element_by_selector(page=page, selector=".btn.btn-md.btn-secondary.authorization-button.qa-button-login", index=0)
-        await playwright_parser.click(element=button_to_auth)
 
-        await playwright_parser.wait_selector(page=page, selector="#mmodalpublic___BV_modal_title_")
+    async def _get_link_redirect_to_page_auth_in_plugin(self) -> str:
+        tag_to_redirect_login_page = await self._get_tag_by_selector(
+            selector=self.selectors.login_button
+        )
+        href_login_page = await self._get_attribute_from_tag(
+            tag=tag_to_redirect_login_page
+        )
 
-        await playwright_parser.goto(page=page, url=url)
+        self._ensure_authentication_required(href=href_login_page)
 
-async def parse_plugin_data(url: str, user_data_dir: str, plugin_path: str, login: str, password: str) -> None:
-    playwright_parser = PlaywrightParser(path_to_plugin=plugin_path)
+        return href_login_page
+    
+    async def _auth(self, url_to_login: str, url_to_back: str) -> None:
+        try:
+            await self._goto_url(url=url_to_login)
+            await self._auth_in_plugin()
+            await self._goto_wb_back(url=url_to_back)
+        except TimeoutError:
+            raise ValueError("Неправильные данные авторизации")
+
+    async def _goto_url(self, url: str) -> None:
+        await self._redirect(url=url)
+
+    async def _auth_in_plugin(self) -> None:
+        await self._input_login_data()
+        await self._input_password_data()
+
+        await self._click_button_for_auth()
+
+    async def _input_login_data(self) -> None:
+        await self._input_auth_data_to_auth_field(
+            selector=self.selectors.login_field_auth, 
+            value_to_fill=self.login
+        )
+
+    async def _input_password_data(self) -> None:
+        await self._input_auth_data_to_auth_field(
+            selector=self.selectors.password_field_auth,
+            value_to_fill=self.password
+        )
+
+    async def _click_button_for_auth(self) -> None:
+        tag_button_auth = await self._get_tag_by_selector(
+            selector=self.selectors.auth_button
+        )
+        await self._button_click(tag=tag_button_auth)
+
+    async def _goto_wb_back(self, url: str) -> None:
+        tag_good_auth = await self._get_tag_by_selector(
+            selector=self.selectors.good_auth
+        )
+        await self._check_good_auth(tag=tag_good_auth, url=url)
+
+
+    async def _get_tag_by_selector(self, selector: str) -> Locator:
+        return await self.parser.get_element_by_selector(
+            page=self.page, 
+            selector=selector, 
+            index=0
+        )
+    
+    async def _get_attribute_from_tag(self, tag: Locator) -> str:
+        return await self.parser.get_attribute(
+            tag=tag, 
+            tag_name="href"
+        )
+
+    def _ensure_authentication_required(self, href: str | None) -> None:
+        if not self._has_login_href_in_page(href=href):
+            raise AlreadyAuthenticatedException(ALREADY_AUTH_PLUGIN)
+
+    def _has_login_href_in_page(self, href: str | None) -> bool:
+        return href and "login" in href.lower()
+
+    async def _fill_value_in_tag(self, tag: Locator, value: str) -> None:
+        await self.parser.fill(element=tag, value_to_fill=value)
+
+    async def _redirect(self, url: str) -> None:
+        await self.parser.goto(
+            page=self.page,
+            url=url
+        )
+
+    async def _input_auth_data_to_auth_field(self, selector: str, value_to_fill: str) -> None:
+        auth_field = await self._get_tag_by_selector(selector=selector)
+        await self._fill_value_in_tag(tag=auth_field, value=value_to_fill)
+
+    async def _button_click(self, tag: Locator) -> None:
+        await self.parser.click(element=tag)
+
+    async def _check_good_auth(self, tag: Locator | None, url: str):
+        if tag:
+            await self._redirect(url=url)
+
+
+async def parse_plugin_data(url: str, user_data_dir: str, path_to_plugin: str, auth_data: AuthPluginSchema) -> None:
+    '''
+    Функция для проверки парсера, НЕ ИСПОЛЬЗОВАТЬ В НЕЙРОБИДДЕРЕ, ОТДЕЛЬНО СОЗДАТЬ
+    в продакшине удалить
+    '''
+    playwright_parser = PlaywrightParser(path_to_plugin=path_to_plugin)
 
     async with async_playwright() as p:
         browser = await p.chromium.launch_persistent_context(
@@ -125,10 +226,15 @@ async def parse_plugin_data(url: str, user_data_dir: str, plugin_path: str, logi
         page = await playwright_parser.new_page(browser=browser)
         await playwright_parser.goto(page=page, url=url)
         
+        plugin_authenticator = PluginAuth(
+            page=page, 
+            parser=playwright_parser,
+            auth_data=auth_data
+        )
         try:
-            await login_plugin(url=url, page=page, playwright_parser=playwright_parser, login=login, password=password)
-        except TimeoutError:
-            print("Проверка, уже авторизован")
+            await plugin_authenticator.auth_in_plugin(goods_wb_url=url)
+        except Exception as e:
+            print(e)
 
         async def collect_data(page, data_to_save, current_url):
             items = page.locator(".cpm-card-widget.eggheads-bootstrap")
@@ -150,22 +256,48 @@ async def parse_plugin_data(url: str, user_data_dir: str, plugin_path: str, logi
             print("Недоступно в плагине, не можем парсить")
         else:
             data_to_save = []
-            await collect_data(page=page, data_to_save=data_to_save, current_url=url)
+            await page.evaluate("""
+                (async function() {
+                    const scrollHeight = 15000;
+                    let scrollPosition = 0;
+                    const scrollStep = 50;  // Шаг прокрутки (пиксели)
 
-            print(data_to_save) #TODO: ДОБАВИТЬ БД ДЛЯ НЕЙРОНКИ!!!! И НАСТРОИТЬ НЕЙРОНКУ
+                    while (scrollPosition < scrollHeight) {
+                        window.scrollTo(0, scrollPosition);
+                        scrollPosition += scrollStep;
+
+                        // Ожидаем перед следующим шагом (100ms)
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                    }
+                })();
+            """)
+            await page.wait_for_timeout(10000)
+            await collect_data(page=page, data_to_save=data_to_save, current_url=url)
+            print(len(data_to_save)) 
+            #TODO: ДОБАВИТЬ БД ДЛЯ НЕЙРОНКИ!!!! И НАСТРОИТЬ НЕЙРОНКУ
+            #TODO: ПРОВЕРКА ДВУХ СТРАНИЦ, ЧТОБЫ ВЗЯТЬ 200 СТРОК С ДАННЫМИ
+            # 1) класс для парсинга данных со страниц
+            # 2) класс для сохранения этих самых данных в sqlite
+            # 3) класс для нейронки 
 
         print("Проверка, финал")
         os.rmdir(user_data_dir)
 
-def main(url: str, user_data_dir: str, plugin_path: str, login: str, password: str):
-    asyncio.run(parse_plugin_data(url, user_data_dir, plugin_path, login, password))
+def main(path_to_plugin: str, user_data_dir: str, url: str, auth_data: AuthPluginSchema):
+    asyncio.run(parse_plugin_data(
+        path_to_plugin=path_to_plugin,
+        user_data_dir=user_data_dir,
+        url=url,
+        auth_data=auth_data
+    ))
 
 if __name__ == "__main__":
-    main(
-# https://www.wildberries.ru/catalog/0/search.aspx?search=комплект%20сигнализации
-        url="https://www.wildberries.ru/catalog/0/search.aspx?search=%D0%BA%D0%B0%D0%BC%D0%B5%D1%80%D0%B0%20%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE%D0%BD%D0%B0%D0%B1%D0%BB%D1%8E%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F",
-        user_data_dir="dsadsdads",
-        plugin_path=r"C:\Users\User\AppData\Local\Google\Chrome\User Data\Default\Extensions\eabmbhjdihhkdkkmadkeoggelbafdcdd\2.15.27_0",
+    plugin_path = r"C:\Users\User\AppData\Local\Google\Chrome\User Data\Default\Extensions\eabmbhjdihhkdkkmadkeoggelbafdcdd\2.15.27_0"
+    auth = AuthPluginSchema(
         login="ip-kalugina-olga-viktorovna@eggheads.solutions",
         password="JVD4Revp"
     )
+    # https://www.wildberries.ru/catalog/0/search.aspx?search=комплект%20сигнализации
+    url = "https://www.wildberries.ru/catalog/0/search.aspx?search=%D0%BA%D0%B0%D0%BC%D0%B5%D1%80%D0%B0%20%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE%D0%BD%D0%B0%D0%B1%D0%BB%D1%8E%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F"
+    user_data_dir="dsadsdads1233"
+    main(path_to_plugin=plugin_path, user_data_dir=user_data_dir, url=url, auth_data=auth)
