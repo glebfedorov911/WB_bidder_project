@@ -125,3 +125,16 @@ class AuthPluginSelectors(BaseModel):
     password_field_auth: str = ".authorization-input.qa-password"
     auth_button: str = ".btn.btn-md.btn-secondary.authorization-button.qa-button-login"
     good_auth: str = "#mmodalpublic___BV_modal_title_"
+
+class WbSelectors(BaseModel):
+    next_page: str = ".pagination-next.pagination__next.j-next-page"
+
+    can_parse_data: str = ".cpm-card-widget.eggheads-bootstrap"
+    goods_on_page: str = ".cpm-card-widget.eggheads-bootstrap"
+    wb_articul: str = "id"
+    marks: str = "#{articul_wb} > div.product-card__wrapper > div.product-card__bottom-wrap > p.product-card__rating-wrap > span.address-rate-mini.address-rate-mini--sm"
+    count_marks: str = "#{articul_wb} > div.product-card__wrapper > div.product-card__bottom-wrap > p.product-card__rating-wrap > span.product-card__count"
+    fbo: str = "#{articul_wb} > div.product-card__wrapper > div.list-widget.eggheads-product-list-widget.eggheads-bootstrap > div.b-overlay-wrap.position-relative.eggheads-overlay > ul > li:nth-child(2) > span.text.-bold"
+    num_of_the_rating: str = "#{articul_wb} > div.product-card__wrapper > div.list-widget.eggheads-product-list-widget.eggheads-bootstrap > div.list-widget__number"
+    from_value: str = "div > div > span > span"
+    price: str = ".title"

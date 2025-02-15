@@ -6,9 +6,9 @@ import asyncio
 import os
 import urllib
 
-from .schemas import AuthPluginSchema, AuthPluginSelectors
+from .schemas import AuthPluginSchema, AuthPluginSelectors, WbSelectors
 from .custom_exceptions import AlreadyAuthenticatedException
-from utils.exceptions import ALREADY_AUTH_PLUGIN, TIMEOUT
+from utils.exceptions import ALREADY_AUTH_PLUGIN, TIMEOUT, NOT_AVAILABLE_NEURO
 
 
 class Parser(ABC):
@@ -48,6 +48,45 @@ class Parser(ABC):
     @abstractmethod
     async def wait_selector(self, page: Page, selector: str) -> bool:
         ...
+
+    @abstractmethod
+    async def wait_time(self, page: Page, time: int) -> None:
+        ...
+
+    @abstractmethod
+    async def do_js(self, page: Page, script: str) -> None:
+        ...
+
+    @abstractmethod
+    async def get_text(self, locator: Locator) -> None:
+        ...
+
+    @abstractmethod
+    def get_element_by_locator(
+        self, 
+        get_from: Page | Locator,
+        selector: str
+    ) -> Locator:
+        ...
+
+class TemplateDB(ABC):
+    
+    @abstractmethod
+    def get_all(self, query: str) -> list:
+        ...
+
+    @abstractmethod
+    def data_add(self, data: tuple) -> None:
+        ...
+
+class SQLiteDB(TemplateDB):
+    def __init__(self, conn, db_path):
+        self.conn = conn
+        self.db_path = db_path
+
+    def __del__(self):
+        self.conn.close()
+        os.remove(self.db_path)
 
 class PlaywrightParser(Parser):
     TIMEOUT = 10_000
@@ -97,7 +136,23 @@ class PlaywrightParser(Parser):
             await page.wait_for_selector(selector, timeout=self.TIMEOUT)
         except:
             raise TimeoutError(TIMEOUT)
+
+    async def wait_time(self, page: Page, time: int) -> None:
+        await page.wait_for_timeout(time)
+
+    async def do_js(self, page: Page, script: str) -> None:
+        await page.evaluate(script)
+
+    async def get_text(self, locator: Locator) -> None:
+        await locator.text_content()
     
+    def get_element_by_locator(
+        self, 
+        get_from: Page | Locator,
+        selector: str
+    ) -> Locator:
+        return get_from.locator(selector)
+
 class PluginAuth:
     def __init__(self, page: Page, parser: Parser, auth_data: AuthPluginSchema):
         self.page = page
@@ -212,6 +267,156 @@ class PluginAuth:
             await self._redirect(url=url)
 
 
+class WbParser:
+    SCROLL_WAITING = 10_000
+    SCRIPT = """
+        (async function() {
+            const scrollHeight = 15000;
+            let scrollPosition = 0;
+            const scrollStep = 50;
+
+            while (scrollPosition < scrollHeight) {
+                window.scrollTo(0, scrollPosition);
+                scrollPosition += scrollStep;
+
+                await new Promise(resolve => setTimeout(resolve, 100));
+            }
+        })();
+    """ 
+    SHOW_PAGE = 2
+
+    def __init__(self, page: Page, parser: Parser):
+        self.page = page
+        self.selectors = WbSelectors()
+        self.parser = parser
+
+    async def get_data(self, url: str) -> list:
+        if not await self._can_parse():
+            raise ValueError(NOT_AVAILABLE_NEURO)
+        
+        data_parsed = []    
+        for _ in range(self.SHOW_PAGE):
+            await self._scrolling_page()
+
+            data_parsed += await self._collect_data(current_url=url)
+            await self._go_to_next_page()
+
+        return data_parsed
+
+    async def _can_parse(self) -> bool:
+        try:
+            await self.parser.wait_selector(page=self.page, selector=self.selectors.can_parse_data)
+        except TimeoutError:
+            return False
+        return True
+
+    async def _scrolling_page(self) -> None:
+        await self.parser.do_js(page=self.page, script=self.SCRIPT)
+        await self.parser.wait_time(page=self.page, time=self.SCROLL_WAITING)
+    
+    async def _go_to_next_page(self) -> None:
+        next_button = await self.parser.get_element_by_selector(
+            page=self.page,
+            selector=self.selectors.next_page,
+            index=0
+        )
+        await self.parser.click(element=next_button)
+
+    async def _collect_data(self, current_url: str) -> list:
+        data_to_save = []
+        items = self.parser.get_element_by_locator(
+            get_from=self.page,
+            selector=self.selectors.goods_on_page
+        )
+
+        for item in await items.all():
+            articul_wb = await self._get_articul_wb(item=item)
+
+            marks = await self._get_marks(articul_wb=articul_wb)
+            count_marks = await self._get_count_marks(articul_wb=articul_wb)
+            fbo = await self._get_fbo(articul_wb=articul_wb)
+            num_of_the_rating = await self._get_num_of_the_rating(
+                articul_wb=articul_wb
+            )
+            
+            from_value = await self._get_from_value(item=item)
+            price = await self._get_price(item=item)
+
+            url = self._get_urL(url=current_url)
+
+            data_to_save.append(
+                (from_value, price, url, marks, count_marks, fbo, num_of_the_rating)
+            )
+
+        return data_to_save
+
+    async def _get_articul_wb(self, item: Locator) -> str:
+        return (
+            await (item.get_attribute(self.selectors.wb_articul))
+        ).split("-")[-1]
+
+    async def _get_marks(self, articul_wb: str) -> str:
+        return await self._get_text_content_by_selector(
+            selector=self.selectors.marks,
+            articul_wb=articul_wb
+        )
+    
+    async def _get_count_marks(self, articul_wb: str) -> str:
+        return await self._get_text_content_by_selector(
+            selector=self.selectors.count_marks,
+            articul_wb=articul_wb
+        )
+
+    async def _get_fbo(self, articul_wb: str) -> str:
+        return await self._get_text_content_by_selector(
+            selector=self.selectors.fbo,
+            articul_wb=articul_wb
+        )
+
+    async def _get_num_of_the_rating(self, articul_wb: str) -> str:
+        return await self._get_text_content_by_selector(
+            selector=self.selectors.num_of_the_rating,
+            articul_wb=articul_wb
+        )
+
+    async def _get_text_content_by_selector(
+        self, 
+        selector: str,
+        articul_wb: str 
+    ) -> str:
+        locator =  await self.parser.get_element_by_selector(
+            page=self.page,
+            selector=selector.format(articul_wb=articul_wb),
+            index=0
+        )
+        return await self.parser.get_text(locator=locator)
+
+    async def _get_from_value(self, item: str) -> str:
+        return await self._get_text_content_by_locator(
+            item=item,
+            selector=self.selectors.from_value
+        )
+
+    async def _get_price(self, item: str) -> str:
+        return await self._get_text_content_by_locator(
+            item=item,
+            selector=self.selectors.price
+        )
+
+    async def _get_text_content_by_locator(
+        self, 
+        item: Locator,
+        selector: str
+    ) -> str:
+        locator = self.parser.get_element_by_locator(
+            get_from=item,
+            selector=selector
+        )
+        return await self.parser.get_text(locator=locator)
+
+    def _get_urL(self, url):
+        return urllib.parse.unquote(url)
+
 async def parse_plugin_data(url: str, user_data_dir: str, path_to_plugin: str, auth_data: AuthPluginSchema) -> None:
     '''
     Функция для проверки парсера, НЕ ИСПОЛЬЗОВАТЬ В НЕЙРОБИДДЕРЕ, ОТДЕЛЬНО СОЗДАТЬ
@@ -236,49 +441,20 @@ async def parse_plugin_data(url: str, user_data_dir: str, path_to_plugin: str, a
         except Exception as e:
             print(e)
 
-        async def collect_data(page, data_to_save, current_url):
-            items = page.locator(".cpm-card-widget.eggheads-bootstrap")
-            i = await items.all()
-            for item in await items.all():
-                articul_wb = (await (item.get_attribute("id"))).split("-")[-1]
-                marks = await (await page.query_selector(f"#{articul_wb} > div.product-card__wrapper > div.product-card__bottom-wrap > p.product-card__rating-wrap > span.address-rate-mini.address-rate-mini--sm")).text_content()
-                count_marks = await (await page.query_selector(f"#{articul_wb} > div.product-card__wrapper > div.product-card__bottom-wrap > p.product-card__rating-wrap > span.product-card__count")).text_content()
-                fbo = await (await  page.query_selector(f"#{articul_wb} > div.product-card__wrapper > div.list-widget.eggheads-product-list-widget.eggheads-bootstrap > div.b-overlay-wrap.position-relative.eggheads-overlay > ul > li:nth-child(2) > span.text.-bold")).text_content()
-                num_of_the_rating = await (await page.query_selector(f"#{articul_wb} > div.product-card__wrapper > div.list-widget.eggheads-product-list-widget.eggheads-bootstrap > div.list-widget__number")).text_content()
-                from_value = await (item.locator("div > div > span > span")).text_content()
-                price = await (item.locator(".title")).text_content()
-                url = urllib.parse.unquote(current_url)
-                data_to_save.append((from_value, price, url, marks, count_marks, fbo, num_of_the_rating))
+        
+        wb_parser = WbParser(page=page, parser=playwright_parser)
 
         try:
-            await playwright_parser.wait_selector(page=page, selector=".cpm-card-widget.eggheads-bootstrap")
-        except:
-            print("Недоступно в плагине, не можем парсить")
-        else:
-            data_to_save = []
-            await page.evaluate("""
-                (async function() {
-                    const scrollHeight = 15000;
-                    let scrollPosition = 0;
-                    const scrollStep = 50;  // Шаг прокрутки (пиксели)
+            data = await wb_parser.get_data(url=url)
+        except Exception as e:
+            print(e)
 
-                    while (scrollPosition < scrollHeight) {
-                        window.scrollTo(0, scrollPosition);
-                        scrollPosition += scrollStep;
+        print(len(data))
 
-                        // Ожидаем перед следующим шагом (100ms)
-                        await new Promise(resolve => setTimeout(resolve, 100));
-                    }
-                })();
-            """)
-            await page.wait_for_timeout(10000)
-            await collect_data(page=page, data_to_save=data_to_save, current_url=url)
-            print(len(data_to_save)) 
-            #TODO: ДОБАВИТЬ БД ДЛЯ НЕЙРОНКИ!!!! И НАСТРОИТЬ НЕЙРОНКУ
-            #TODO: ПРОВЕРКА ДВУХ СТРАНИЦ, ЧТОБЫ ВЗЯТЬ 200 СТРОК С ДАННЫМИ
-            # 1) класс для парсинга данных со страниц
-            # 2) класс для сохранения этих самых данных в sqlite
-            # 3) класс для нейронки 
+        #TODO: ДОБАВИТЬ БД ДЛЯ НЕЙРОНКИ!!!! И НАСТРОИТЬ НЕЙРОНКУ
+        # 1) класс для парсинга данных со страниц | ГОТОВО
+        # 2) класс для сохранения этих самых данных в sqlite |
+        # 3) класс для нейронки |
 
         print("Проверка, финал")
         os.rmdir(user_data_dir)
