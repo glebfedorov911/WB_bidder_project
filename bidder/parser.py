@@ -8,8 +8,10 @@ import urllib
 
 from .schemas import AuthPluginSchema, AuthPluginSelectors, WbSelectors
 from .custom_exceptions import AlreadyAuthenticatedException
-from utils.exceptions import ALREADY_AUTH_PLUGIN, TIMEOUT, NOT_AVAILABLE_NEURO
-
+from utils.exceptions import (
+    ALREADY_AUTH_PLUGIN, TIMEOUT, NOT_AVAILABLE_NEURO, DOES_NOT_EXISTS,
+    BAD_DATA_TO_AUTH
+)
 
 class Parser(ABC):
 
@@ -69,35 +71,20 @@ class Parser(ABC):
     ) -> Locator:
         ...
 
-class TemplateDB(ABC):
-    
-    @abstractmethod
-    def get_all(self, query: str) -> list:
-        ...
-
-    @abstractmethod
-    def data_add(self, data: tuple) -> None:
-        ...
-
-class SQLiteDB(TemplateDB):
-    def __init__(self, conn, db_path):
-        self.conn = conn
-        self.db_path = db_path
-
-    def __del__(self):
-        self.conn.close()
-        os.remove(self.db_path)
-
 class PlaywrightParser(Parser):
     TIMEOUT = 10_000
 
-    def __init__(self, path_to_plugin: str):
+    def __init__(self, user_data_dir: str, path_to_plugin: str):
+        self.user_data_dir = user_data_dir
         self.path_to_plugin = os.path.expanduser(path_to_plugin)
         self.headless = False
 
-    async def get_options(self, user_data_dir: str) -> dict:
+    def __del__(self):
+        os.rmdir(self.user_data_dir)
+
+    async def get_options(self) -> dict:
         return {
-            "user_data_dir": user_data_dir,
+            "user_data_dir": self.user_data_dir,
             "args": [
                 f"--disable-extensions-except={self.path_to_plugin}",
                 f"--load-extension={self.path_to_plugin}",
@@ -168,6 +155,8 @@ class PluginAuth:
         except AlreadyAuthenticatedException:
             print("Пользователь уже авторизован")
             return
+        except TimeoutError:
+            raise ValueError(NOT_AVAILABLE_NEURO)
 
         await self._auth(url_to_login=login_link, url_to_back=goods_wb_url)
 
@@ -177,7 +166,8 @@ class PluginAuth:
             selector=self.selectors.login_button
         )
         href_login_page = await self._get_attribute_from_tag(
-            tag=tag_to_redirect_login_page
+            tag=tag_to_redirect_login_page,
+            tag_name="href"
         )
 
         self._ensure_authentication_required(href=href_login_page)
@@ -190,7 +180,7 @@ class PluginAuth:
             await self._auth_in_plugin()
             await self._goto_wb_back(url=url_to_back)
         except TimeoutError:
-            raise ValueError("Неправильные данные авторизации")
+            raise ValueError(BAD_DATA_TO_AUTH)
 
     async def _goto_url(self, url: str) -> None:
         await self._redirect(url=url)
@@ -233,10 +223,10 @@ class PluginAuth:
             index=0
         )
     
-    async def _get_attribute_from_tag(self, tag: Locator) -> str:
+    async def _get_attribute_from_tag(self, tag: Locator, tag_name: str) -> str:
         return await self.parser.get_attribute(
             tag=tag, 
-            tag_name="href"
+            tag_name=tag_name
         )
 
     def _ensure_authentication_required(self, href: str | None) -> None:
@@ -324,25 +314,31 @@ class WbParser:
 
     async def _collect_data(self, current_url: str) -> list:
         data_to_save = []
-        items = self.parser.get_element_by_locator(
-            get_from=self.page,
-            selector=self.selectors.goods_on_page
-        )
+        try:
+            items = self.parser.get_element_by_locator(
+                get_from=self.page,
+                selector=self.selectors.goods_on_page
+            )
+        except:
+            return data_to_save
 
         for item in await items.all():
-            articul_wb = await self._get_articul_wb(item=item)
+            try:
+                articul_wb = await self._get_articul_wb(item=item)
 
-            marks = await self._get_marks(articul_wb=articul_wb)
-            count_marks = await self._get_count_marks(articul_wb=articul_wb)
-            fbo = await self._get_fbo(articul_wb=articul_wb)
-            num_of_the_rating = await self._get_num_of_the_rating(
-                articul_wb=articul_wb
-            )
-            
-            from_value = await self._get_from_value(item=item)
-            price = await self._get_price(item=item)
+                marks = await self._get_marks(articul_wb=articul_wb)
+                count_marks = await self._get_count_marks(articul_wb=articul_wb)
+                fbo = await self._get_fbo(articul_wb=articul_wb)
+                num_of_the_rating = await self._get_num_of_the_rating(
+                    articul_wb=articul_wb
+                )
+                
+                from_value = await self._get_from_value(item=item)
+                price = await self._get_price(item=item)
 
-            url = self._get_urL(url=current_url)
+                url = self._get_urL(url=current_url)
+            except ValueError:
+                continue
 
             data_to_save.append(
                 (from_value, price, url, marks, count_marks, fbo, num_of_the_rating)
@@ -389,7 +385,10 @@ class WbParser:
             selector=selector.format(articul_wb=articul_wb),
             index=0
         )
-        return await self.parser.get_text(locator=locator)
+        if locator:
+            return await self.parser.get_text(locator=locator) 
+        else:
+            raise ValueError(DOES_NOT_EXISTS)
 
     async def _get_from_value(self, item: str) -> str:
         return await self._get_text_content_by_locator(
@@ -412,7 +411,10 @@ class WbParser:
             get_from=item,
             selector=selector
         )
-        return await self.parser.get_text(locator=locator)
+        if locator:
+            return await self.parser.get_text(locator=locator) 
+        else:
+            raise ValueError(DOES_NOT_EXISTS)
 
     def _get_urL(self, url):
         return urllib.parse.unquote(url)
@@ -422,11 +424,14 @@ async def parse_plugin_data(url: str, user_data_dir: str, path_to_plugin: str, a
     Функция для проверки парсера, НЕ ИСПОЛЬЗОВАТЬ В НЕЙРОБИДДЕРЕ, ОТДЕЛЬНО СОЗДАТЬ
     в продакшине удалить
     '''
-    playwright_parser = PlaywrightParser(path_to_plugin=path_to_plugin)
+    playwright_parser = PlaywrightParser(
+        user_data_dir=user_data_dir, 
+        path_to_plugin=path_to_plugin
+    )
 
     async with async_playwright() as p:
         browser = await p.chromium.launch_persistent_context(
-            **(await playwright_parser.get_options(user_data_dir=user_data_dir))
+            **(await playwright_parser.get_options())
         )
         page = await playwright_parser.new_page(browser=browser)
         await playwright_parser.goto(page=page, url=url)
@@ -438,26 +443,21 @@ async def parse_plugin_data(url: str, user_data_dir: str, path_to_plugin: str, a
         )
         try:
             await plugin_authenticator.auth_in_plugin(goods_wb_url=url)
+        except AlreadyAuthenticatedException as e:
+            print(e)
         except Exception as e:
             print(e)
+            return
 
-        
         wb_parser = WbParser(page=page, parser=playwright_parser)
 
         try:
             data = await wb_parser.get_data(url=url)
         except Exception as e:
             print(e)
+            return
 
         print(len(data))
-
-        #TODO: ДОБАВИТЬ БД ДЛЯ НЕЙРОНКИ!!!! И НАСТРОИТЬ НЕЙРОНКУ
-        # 1) класс для парсинга данных со страниц | ГОТОВО
-        # 2) класс для сохранения этих самых данных в sqlite |
-        # 3) класс для нейронки |
-
-        print("Проверка, финал")
-        os.rmdir(user_data_dir)
 
 def main(path_to_plugin: str, user_data_dir: str, url: str, auth_data: AuthPluginSchema):
     asyncio.run(parse_plugin_data(
@@ -468,12 +468,13 @@ def main(path_to_plugin: str, user_data_dir: str, url: str, auth_data: AuthPlugi
     ))
 
 if __name__ == "__main__":
-    plugin_path = r"C:\Users\User\AppData\Local\Google\Chrome\User Data\Default\Extensions\eabmbhjdihhkdkkmadkeoggelbafdcdd\2.15.27_0"
+    plugin_path = r"C:\Users\User\AppData\Local\Google\Chrome\User Data\Default\Extensions\eabmbhjdihhkdkkmadkeoggelbafdcdd\2.15.29_0"
     auth = AuthPluginSchema(
         login="ip-kalugina-olga-viktorovna@eggheads.solutions",
         password="JVD4Revp"
     )
     # https://www.wildberries.ru/catalog/0/search.aspx?search=комплект%20сигнализации
-    url = "https://www.wildberries.ru/catalog/0/search.aspx?search=%D0%BA%D0%B0%D0%BC%D0%B5%D1%80%D0%B0%20%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE%D0%BD%D0%B0%D0%B1%D0%BB%D1%8E%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F"
+    # https://www.wildberries.ru/catalog/0/search.aspx?search=%D0%BA%D0%B0%D0%BC%D0%B5%D1%80%D0%B0%20%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE%D0%BD%D0%B0%D0%B1%D0%BB%D1%8E%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F
+    url = "https://www.wildberries.ru/catalog/0/search.aspx?search=комплект%20сигнализации"
     user_data_dir="dsadsdads1233"
     main(path_to_plugin=plugin_path, user_data_dir=user_data_dir, url=url, auth_data=auth)
