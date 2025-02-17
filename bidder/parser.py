@@ -12,6 +12,7 @@ from utils.exceptions import (
     ALREADY_AUTH_PLUGIN, TIMEOUT, NOT_AVAILABLE_NEURO, DOES_NOT_EXISTS,
     BAD_DATA_TO_AUTH
 )
+from neuro.lineal_regression import NeuroAnalytics, DataPrepare
 
 class Parser(ABC):
 
@@ -443,21 +444,20 @@ async def parse_plugin_data(url: str, user_data_dir: str, path_to_plugin: str, a
         )
         try:
             await plugin_authenticator.auth_in_plugin(goods_wb_url=url)
-        except AlreadyAuthenticatedException as e:
-            print(e)
         except Exception as e:
-            print(e)
-            return
+            raise(e)
 
         wb_parser = WbParser(page=page, parser=playwright_parser)
 
         try:
             data = await wb_parser.get_data(url=url)
         except Exception as e:
-            print(e)
-            return
+            raise(e)
 
-        print(len(data))
+        prepare = DataPrepare(parsed_data=data)
+        neuro = NeuroAnalytics(prepare=prepare)
+
+        print(neuro.start())
 
 def main(path_to_plugin: str, user_data_dir: str, url: str, auth_data: AuthPluginSchema):
     asyncio.run(parse_plugin_data(
@@ -473,8 +473,7 @@ if __name__ == "__main__":
         login="ip-kalugina-olga-viktorovna@eggheads.solutions",
         password="JVD4Revp"
     )
-    # https://www.wildberries.ru/catalog/0/search.aspx?search=комплект%20сигнализации
-    # https://www.wildberries.ru/catalog/0/search.aspx?search=%D0%BA%D0%B0%D0%BC%D0%B5%D1%80%D0%B0%20%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE%D0%BD%D0%B0%D0%B1%D0%BB%D1%8E%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F
-    url = "https://www.wildberries.ru/catalog/0/search.aspx?search=комплект%20сигнализации"
-    user_data_dir="dsadsdads1233"
+    url = "https://www.wildberries.ru/catalog/0/search.aspx?search=%D0%BA%D0%B0%D0%BC%D0%B5%D1%80%D0%B0%20%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE%D0%BD%D0%B0%D0%B1%D0%BB%D1%8E%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F"
+    # url = "https://www.wildberries.ru/catalog/0/search.aspx?search=комплект%20сигнализации"
+    user_data_dir="dsadsdads123333"
     main(path_to_plugin=plugin_path, user_data_dir=user_data_dir, url=url, auth_data=auth)
