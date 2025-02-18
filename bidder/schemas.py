@@ -42,7 +42,6 @@ class BidderAndCPMSchemaMixin(BaseModel):
         try:
             return TypeCampaign(value)
         except:
-            print("fsjdjfsdfdsj")
             raise ValueError(INVALID_DATA_FOR_TYPE_CAMPAIGN.format(value=value))
 
 class BidderData(BidderAndCPMSchemaMixin):

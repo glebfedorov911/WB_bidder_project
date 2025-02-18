@@ -61,7 +61,7 @@ class Parser(ABC):
         ...
 
     @abstractmethod
-    async def get_text(self, locator: Locator) -> None:
+    async def get_text(self, locator: Locator) -> str:
         ...
 
     @abstractmethod
@@ -131,8 +131,8 @@ class PlaywrightParser(Parser):
     async def do_js(self, page: Page, script: str) -> None:
         await page.evaluate(script)
 
-    async def get_text(self, locator: Locator) -> None:
-        await locator.text_content()
+    async def get_text(self, locator: Locator) -> str:
+        return await locator.text_content()
     
     def get_element_by_locator(
         self, 
@@ -338,7 +338,7 @@ class WbParser:
                 price = await self._get_price(item=item)
 
                 url = self._get_urL(url=current_url)
-            except ValueError:
+            except ValueError as e:
                 continue
 
             data_to_save.append(
@@ -454,10 +454,14 @@ async def parse_plugin_data(url: str, user_data_dir: str, path_to_plugin: str, a
         except Exception as e:
             raise(e)
 
-        prepare = DataPrepare(parsed_data=data)
-        neuro = NeuroAnalytics(prepare=prepare)
-
-        print(neuro.start())
+        try:
+            prepare = DataPrepare(parsed_data=data)
+            neuro = NeuroAnalytics(prepare=prepare)
+        
+            data = neuro.start()
+            print(data)
+        except Exception as e:
+            raise(e)
 
 def main(path_to_plugin: str, user_data_dir: str, url: str, auth_data: AuthPluginSchema):
     asyncio.run(parse_plugin_data(

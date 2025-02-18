@@ -1,5 +1,5 @@
 from utils.exceptions import (
-    CANNOT_COLLECT
+    CANNOT_COLLECT, CANNOT_GET_VAR_NAME
 )
 
 import numpy as np
@@ -8,14 +8,16 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import mean_squared_error 
 import xgboost as xgb
+import inspect
 
 from abc import ABC, abstractmethod, abstractstaticmethod
+import re
 
 
 class Cleaner(ABC):
 
     @abstractstaticmethod
-    def clean_number_string(value) -> str | float | int:
+    def clean(value):
         ...
 
 class Prepare(ABC):
@@ -24,18 +26,61 @@ class Prepare(ABC):
     def get_data(self) -> list:
         ...
 
+class CleanerProcess:
 
-class DataCleaner(Cleaner):
-
-    @staticmethod
-    def clean_number_string(value) -> str | float | int:
-        if isinstance(value, str):
-            return value.replace("\xa0", "").replace(",", ".")
+    def get_methods(self, obj: object, method: str | None, value: str):
+        if method:
+            return obj.__dict__[method](value)
         return value
 
+class NeuroCleaner(Cleaner, CleanerProcess):
+    FUNC_INDEXES = {
+        '0': "_clean_from_value",
+        '1': "_clean_price",
+        '3': "_clean_marks",
+        '4': "_clean_count_marks",
+        '5': "_clean_fbo",
+        '6': "_clean_num_of_the_rating",
+    }
+
+    def clean(self, index, value):
+        return self.get_methods(self.__class__, method=self.FUNC_INDEXES.get(str(index)), value=value)
+
+    @staticmethod
+    def _clean_from_value(value) -> int:
+        value = str(value).replace("\xa0", '').split(" ")[1]
+        return int(value)
+
+    @staticmethod
+    def _clean_price(value):
+        value = str(value).replace("\xa0", '').replace(r"\xa0", '')
+        value = value.split(" ")[1]
+        return int(value)
+
+    @staticmethod
+    def _clean_marks(value):
+        value = str(value).replace(",", ".").replace("\xa0", '')
+        return float(value) if value else 0.0
+
+    @staticmethod
+    def _clean_count_marks(value):
+        value = str(value).replace("\xa0", '')
+        value = value.split(" ")[0]
+        return int(value) if value.lower() != "нет" else 0.0
+
+    @staticmethod
+    def _clean_fbo(value):
+        match = re.search(r'\d[\d\s]*\d|\b0\b', value)
+        result = match.group().replace(' ', '') if match else '0'
+        return int(result)
+
+    @staticmethod
+    def _clean_num_of_the_rating(value):
+        return int(value)
+    
 class DataPrepare(Prepare):
 
-    def __init__(self, parsed_data: list[tuple], cleaner: Cleaner = DataCleaner()):
+    def __init__(self, parsed_data: list[tuple], cleaner: Cleaner = NeuroCleaner()):
         self.parsed_data = parsed_data
         self.len_one_collection_data = len(self.parsed_data[0]) \
             if len(self.parsed_data) > 0 \
@@ -67,8 +112,9 @@ class DataPrepare(Prepare):
             for i in range(self.len_one_collection_data):
                 value = self._try_convert_float(data[i])
 
-                results[i].append(self.cleaner.clean_number_string(value))
+                results[i].append(self.cleaner.clean(i, value))
         except Exception as e:
+            raise(e)
             ValueError(CANNOT_COLLECT)
         
         return results
