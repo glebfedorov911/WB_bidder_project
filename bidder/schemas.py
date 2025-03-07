@@ -34,7 +34,7 @@ class TypeCampaign(Enum):
 
 class BidderAndCPMSchemaMixin(BaseModel):
     advertId: int
-    type: TypeCampaign
+    type: TypeCampaign = TypeCampaign.AUTOMATIC.wb_code
 
     @field_validator("type", mode="before")
     @classmethod

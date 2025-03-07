@@ -1,9 +1,11 @@
+from abc import ABC, abstractmethod
 import json
 
 from pydantic import BaseModel
 import httpx
 
 from utils.http_client import HttpxHttpClient, BaseHttpClient
+from .custom_exceptions import WBException
 from .schemas import (
     CurrentPositionSchema, PeriodTime, OrderBy,
     CPMChangeSchema
@@ -21,6 +23,7 @@ class DataConverter:
         for i in list(data_dict.keys()):
             if data_dict[i] is None:
                 del data_dict[i]
+        print(data_dict)
         return json.dumps(data_dict)
 
 class WildberriesBidderWorkerMixin:
@@ -47,21 +50,33 @@ class WildberriesBidderWorkerMixin:
         return DataConverter.get_clear_data(data_to_request)
         
     def _get_json_from_response(self, response: httpx.Response) -> dict:
-        return response.json()
+        if response.status_code != 200:
+            raise ValueError(WBException.INVALID_REQUEST)
+        try:
+            return response.json()
+        except json.JSONDecodeError:
+            ...
+        return {}
+        
+class WBApi(ABC):
 
-class WildberriesBidderCPMWorker(WildberriesBidderWorkerMixin):
+    
+    @abstractmethod
+    async def run(schema: BaseModel) -> dict: ...
+
+class WildberriesBidderCPMWorker(WBApi, WildberriesBidderWorkerMixin):
     def __init__(self, token: str, http_client: BaseHttpClient):
         super().__init__(url=URL_CPM, token=token, http_client=http_client)
 
-    async def change_cpm(self, change_cpm: CPMChangeSchema) -> dict:
-        return await self._send_request_and_get_json_from_response(method="post", data_to_request=change_cpm)
+    async def run(self, schema: CPMChangeSchema) -> dict:
+        return await self._send_request_and_get_json_from_response(method="post", data_to_request=schema)
 
-class WildberriesBidderStatsWorker(WildberriesBidderWorkerMixin):
+class WildberriesBidderStatsWorker(WBApi, WildberriesBidderWorkerMixin):
     def __init__(self, token: str, http_client: BaseHttpClient):
         super().__init__(url=URL_STAT, token=token, http_client=http_client)
 
-    async def get_current_position_in_top(self, current_position_form: CurrentPositionSchema):
-        return await self._send_request_and_get_json_from_response(method="post", data_to_request=current_position_form)
+    async def run(self, schema: CurrentPositionSchema):
+        return await self._send_request_and_get_json_from_response(method="post", data_to_request=schema)
 
 
 import dotenv
@@ -72,25 +87,21 @@ dotenv.load_dotenv()
 
 token = os.getenv("API_TOKEN")
 http_client = HttpxHttpClient()
-stat = WildberriesBidderStatsWorker(
+cpm = WildberriesBidderCPMWorker(
     token=token,
     http_client=http_client
 )
 
 def not_async(data):
-    return asyncio.run(stat.get_current_position_in_top(
+    return asyncio.run(cpm.run(
         data
     ))
 
 print(
     not_async(
-        CurrentPositionSchema(
-            currentPeriod=PeriodTime(
-                start="2025-03-07",
-                end="2025-03-07",
-            ),
-            nmIds=[240664574],
-            orderBy=OrderBy()
+        CPMChangeSchema(
+            advertId=23636560,
+            cpm=157
         )
     )
 )
