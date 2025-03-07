@@ -103,9 +103,10 @@ class CurrentPositionSchema(BaseModel):
     currentPeriod: PeriodTime
     pastPeriod: PeriodTime | None = None
     nmIds: list
-    subjectIds: list
-    brandNames: list
-    tagIds: list
+    subjectIds: list | None = None
+    brandNames: list | None = None
+    tagIds: list | None = None
+    positionCluster: str = "all"
     orderBy: OrderBy
     limit: int = 100
     offset: int = 0

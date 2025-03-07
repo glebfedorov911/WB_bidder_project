@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 import os
 
 from .settings import *
-from .custom_exceptions import ManagerCPMException
 from .utils import BaseRegistry, BaseFabric
 
 
@@ -40,8 +39,7 @@ class DefaultManagerCPM(BaseManagerCPM):
         current_position: int,
         wish_position: int
     ):
-        super().__init__(self, cpm, step, current_position, wish_position)
-
+        super().__init__(cpm, step, current_position, wish_position)
 
     def increase_cpm(self):
         return self.cpm + self._get_positive_or_negative_step_increase_of_position_dif(self.step)
@@ -57,7 +55,7 @@ class MomentumManagerCPM(BaseManagerCPM):
         current_position: int,
         wish_position: int
     ):
-        super().__init__(self, cpm, step, current_position, wish_position)
+        super().__init__(cpm, step, current_position, wish_position)
 
 
     def increase_cpm(self):
@@ -74,5 +72,5 @@ class ManagerCPMRegistry(BaseRegistry):
 
 class ManagerCPMFabric(BaseFabric): ...
 
-ManagerCPMRegistry.register_manager('default', DefaultManagerCPM)
-ManagerCPMRegistry.register_manager('momentum', MomentumManagerCPM)
+ManagerCPMRegistry.register_obj('default', DefaultManagerCPM)
+ManagerCPMRegistry.register_obj('momentum', MomentumManagerCPM)

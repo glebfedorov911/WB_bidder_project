@@ -1,8 +1,17 @@
+import json
+
 from pydantic import BaseModel
+import httpx
+
+from utils.http_client import HttpxHttpClient, BaseHttpClient
+from .schemas import (
+    CurrentPositionSchema, PeriodTime, OrderBy,
+    CPMChangeSchema
+)
 
 
 URL_CPM = "https://advert-api.wildberries.ru/adv/v0/cpm"
-URL_STAT = "https://seller-analytics-api.wildberries.ru/api/v2/search-report/product/search-texts"
+URL_STAT = "https://seller-analytics-api.wildberries.ru/api/v2/search-report/report"
 
 class DataConverter:
     
@@ -41,15 +50,47 @@ class WildberriesBidderWorkerMixin:
         return response.json()
 
 class WildberriesBidderCPMWorker(WildberriesBidderWorkerMixin):
-    def __init__(self, token: str, url: str, http_client: BaseHttpClient):
+    def __init__(self, token: str, http_client: BaseHttpClient):
         super().__init__(url=URL_CPM, token=token, http_client=http_client)
 
     async def change_cpm(self, change_cpm: CPMChangeSchema) -> dict:
         return await self._send_request_and_get_json_from_response(method="post", data_to_request=change_cpm)
 
 class WildberriesBidderStatsWorker(WildberriesBidderWorkerMixin):
-    def __init__(self, token: str, url: str, http_client: BaseHttpClient):
+    def __init__(self, token: str, http_client: BaseHttpClient):
         super().__init__(url=URL_STAT, token=token, http_client=http_client)
 
     async def get_current_position_in_top(self, current_position_form: CurrentPositionSchema):
         return await self._send_request_and_get_json_from_response(method="post", data_to_request=current_position_form)
+
+
+import dotenv
+import os
+import asyncio
+
+dotenv.load_dotenv()
+
+token = os.getenv("API_TOKEN")
+http_client = HttpxHttpClient()
+stat = WildberriesBidderStatsWorker(
+    token=token,
+    http_client=http_client
+)
+
+def not_async(data):
+    return asyncio.run(stat.get_current_position_in_top(
+        data
+    ))
+
+print(
+    not_async(
+        CurrentPositionSchema(
+            currentPeriod=PeriodTime(
+                start="2025-03-07",
+                end="2025-03-07",
+            ),
+            nmIds=[240664574],
+            orderBy=OrderBy()
+        )
+    )
+)
