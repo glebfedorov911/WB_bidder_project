@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator, ValidationError, model_validator
+from pydantic import BaseModel, field_validator, ValidationError, model_validator, model_serializer
 
 from enum import Enum
 from typing import Self
@@ -72,8 +72,8 @@ class CPMChangeSchema(BidderAndCPMSchemaMixin):
     instrument: int = None
 
 class PeriodTime(BaseModel):
-    start: datetime
-    end: datetime
+    start: str
+    end: str
 
     @field_validator("start", "end", mode="before")
     @classmethod
@@ -84,16 +84,16 @@ class PeriodTime(BaseModel):
         if len(splited_date) < 3:
             raise ValueError(INVALID_DATA_FORMAT)
         
-        if 4 <= len(year) < 5:
+        if not (4 <= len(year) < 5):
             raise ValueError(INVALID_YEAR_FORMAT)
         
-        if 2 <= len(month) < 3:
+        if not (2 <= len(month) < 3):
             raise ValueError(INVALID_MONTH_FORMAT)
         
-        if 2 <= len(day) < 3:
+        if not(2 <= len(day) < 3):
             raise ValueError(INVALID_DAY_FORMAT)
 
-        return datetime(value).strftime("%Y-%m-%d")
+        return value
 
 class OrderBy(BaseModel):
     field: str = "avgPosition"
@@ -101,16 +101,19 @@ class OrderBy(BaseModel):
 
 class CurrentPositionSchema(BaseModel):
     currentPeriod: PeriodTime
-    pastPeriod: PeriodTime
+    pastPeriod: PeriodTime | None = None
     nmIds: list
-    topOrderBy: str = "openCard"
+    subjectIds: list
+    brandNames: list
+    tagIds: list
     orderBy: OrderBy
-    limit: int
+    limit: int = 100
+    offset: int = 0
 
     @field_validator("limit", mode="before")
     @classmethod
     def check_valid_limit(cls, value):
-        if 0 < value <= 30:
+        if 0 < value <= 1000:
             return value
         raise ValueError(INVALID_LIMIT_VALUE)
 
