@@ -454,6 +454,9 @@ async def parse_plugin_data(url: str, user_data_dir: str, path_to_plugin: str, a
         except Exception as e:
             raise(e)
 
+        for i in data:
+            print(i)
+
         try:
             prepare = DataPrepare(parsed_data=data)
             neuro = NeuroAnalytics(prepare=prepare)
@@ -477,7 +480,7 @@ if __name__ == "__main__":
         login="ip-kalugina-olga-viktorovna@eggheads.solutions",
         password="JVD4Revp"
     )
-    # url = "https://www.wildberries.ru/catalog/0/search.aspx?search=%D0%BA%D0%B0%D0%BC%D0%B5%D1%80%D0%B0%20%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE%D0%BD%D0%B0%D0%B1%D0%BB%D1%8E%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F"
-    url = "https://www.wildberries.ru/catalog/0/search.aspx?search=комплект%20сигнализации"
+    url = "https://www.wildberries.ru/catalog/0/search.aspx?search=%D0%BA%D0%B0%D0%BC%D0%B5%D1%80%D0%B0%20%D0%B2%D0%B8%D0%B4%D0%B5%D0%BE%D0%BD%D0%B0%D0%B1%D0%BB%D1%8E%D0%B4%D0%B5%D0%BD%D0%B8%D1%8F"
+    # url = "https://www.wildberries.ru/catalog/0/search.aspx?search=комплект%20сигнализации"
     user_data_dir="dsadsdads123333"
     main(path_to_plugin=plugin_path, user_data_dir=user_data_dir, url=url, auth_data=auth)

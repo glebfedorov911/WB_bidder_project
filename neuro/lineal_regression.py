@@ -53,7 +53,7 @@ class NeuroCleaner(Cleaner, CleanerProcess):
 
     @staticmethod
     def _clean_price(value):
-        value = str(value).replace("\xa0", '').replace(r"\xa0", '')
+        value = str(value).replace("\xa0", '')
         value = value.split(" ")[1]
         return int(value)
 
