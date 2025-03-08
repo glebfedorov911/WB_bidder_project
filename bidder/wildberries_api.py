@@ -10,6 +10,7 @@ from .schemas import (
     CurrentPositionSchema, PeriodTime, OrderBy,
     CPMChangeSchema
 )
+from .utils import BaseFabric, BaseRegistry
 
 
 URL_CPM = "https://advert-api.wildberries.ru/adv/v0/cpm"
@@ -23,7 +24,6 @@ class DataConverter:
         for i in list(data_dict.keys()):
             if data_dict[i] is None:
                 del data_dict[i]
-        print(data_dict)
         return json.dumps(data_dict)
 
 class WildberriesBidderWorkerMixin:
@@ -79,29 +79,10 @@ class WildberriesBidderStatsWorker(WBApi, WildberriesBidderWorkerMixin):
         return await self._send_request_and_get_json_from_response(method="post", data_to_request=schema)
 
 
-import dotenv
-import os
-import asyncio
+class WBApiRegistry(BaseRegistry): 
+    _registry = {}
 
-dotenv.load_dotenv()
+class WBApiFabric(BaseFabric): ...
 
-token = os.getenv("API_TOKEN")
-http_client = HttpxHttpClient()
-cpm = WildberriesBidderCPMWorker(
-    token=token,
-    http_client=http_client
-)
-
-def not_async(data):
-    return asyncio.run(cpm.run(
-        data
-    ))
-
-print(
-    not_async(
-        CPMChangeSchema(
-            advertId=23636560,
-            cpm=157
-        )
-    )
-)
+WBApiRegistry.register_obj("stats", WildberriesBidderStatsWorker)
+WBApiRegistry.register_obj("cpm", WildberriesBidderCPMWorker)

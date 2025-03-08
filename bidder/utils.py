@@ -11,7 +11,9 @@ class BaseRegistry:
 
     @classmethod
     def _obj_type_to_lower(self, obj_type: str):
-        return obj_type.lower()
+        if isinstance(obj_type, str):
+            return obj_type.lower()
+        return obj_type.value.lower()
 
     @classmethod
     def get_obj(cls, obj_type: str):
